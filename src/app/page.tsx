@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import styles from "./page.module.css";
+import { useEffect, useMemo, useState } from "react";import styles from "./page.module.css";
 
 type ListingType = "rider" | "team";
 
@@ -76,6 +75,42 @@ image:
 export default function Home() {
   const [typeFilter, setTypeFilter] = useState<"all" | ListingType>("all");
   const [vibeFilter, setVibeFilter] = useState<string | null>(null);
+const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+
+useEffect(() => {
+  if (!selectedListing) {
+    return;
+  }
+
+  const scrollPosition = window.scrollY;
+  const previousBodyPosition = document.body.style.position;
+  const previousBodyTop = document.body.style.top;
+  const previousBodyWidth = document.body.style.width;
+  const previousHtmlOverflow = document.documentElement.style.overflow;
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      setSelectedListing(null);
+    }
+  }
+
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${scrollPosition}px`;
+  document.body.style.width = "100%";
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    document.documentElement.style.overflow = previousHtmlOverflow;
+    document.body.style.position = previousBodyPosition;
+    document.body.style.top = previousBodyTop;
+    document.body.style.width = previousBodyWidth;
+
+    window.removeEventListener("keydown", handleKeyDown);
+    window.scrollTo(0, scrollPosition);
+  };
+}, [selectedListing]);
 
   const visibleListings = useMemo(() => {
     return listings.filter((listing) => {
@@ -201,8 +236,12 @@ export default function Home() {
                     ))}
                   </div>
 
-                  <button className={styles.profileButton} type="button">
-                    VIEW PROFILE
+<button
+  className={styles.profileButton}
+  type="button"
+  onClick={() => setSelectedListing(listing)}
+>
+                      VIEW PROFILE
                     <span aria-hidden="true">→</span>
                   </button>
                 </div>
@@ -216,6 +255,92 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {selectedListing && (
+  <div
+    className={styles.modalBackdrop}
+    role="presentation"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        setSelectedListing(null);
+      }
+    }}
+  >
+    <section
+      className={styles.profileModal}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-title"
+    >
+      <button
+        className={styles.closeButton}
+        type="button"
+        onClick={() => setSelectedListing(null)}
+        aria-label="Close profile"
+      >
+        CLOSE ×
+      </button>
+
+      <div className={styles.profileImageWrap}>
+        {/* Prototype image. Later replaced by the user upload. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={selectedListing.image}
+          alt=""
+          className={styles.profileImage}
+        />
+
+        <span className={styles.profileType}>
+          {selectedListing.type === "rider"
+            ? "LOOKING FOR A TEAM"
+            : "LOOKING FOR RIDERS"}
+        </span>
+      </div>
+
+      <div className={styles.profileContent}>
+        <p className={styles.cardMeta}>{selectedListing.meta}</p>
+        <h2 id="profile-title">{selectedListing.name}</h2>
+        <p className={styles.profileRegion}>{selectedListing.region}</p>
+
+        <div className={styles.profileSection}>
+          <p className={styles.profileLabel}>ABOUT</p>
+          <p className={styles.profileDescription}>
+            {selectedListing.description}
+          </p>
+        </div>
+
+        <div className={styles.profileSection}>
+          <p className={styles.profileLabel}>UP FOR</p>
+          <div className={styles.profileTags}>
+            {selectedListing.vibes.map((vibe) => (
+              <span key={vibe}>{vibe}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.profileFacts}>
+          <div>
+            <span>LANGUAGES</span>
+            <strong>EN · DE</strong>
+          </div>
+          <div>
+            <span>PUBLISHED</span>
+            <strong>17 SEP 2026</strong>
+          </div>
+        </div>
+
+        <button className={styles.messageButton} type="button">
+          SEND A MESSAGE
+          <span aria-hidden="true">→</span>
+        </button>
+
+        <p className={styles.privacyNote}>
+          Your email address stays private. We only forward your message.
+        </p>
+      </div>
+    </section>
+  </div>
+)}
 
       <footer className={styles.footer}>
         <span>RAD RACE ONETWENTY 2027</span>
