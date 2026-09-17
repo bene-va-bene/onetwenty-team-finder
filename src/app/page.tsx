@@ -208,9 +208,6 @@ setShowCreateForm(false);
 
         <span className={styles.event}>ONETWENTY 2027</span>
 
-        <button className={styles.menuButton} type="button" aria-label="Open menu">
-          MENU
-        </button>
       </header>
 
       <section className={styles.hero}>
@@ -243,7 +240,7 @@ setShowCreateForm(false);
           </div>
 
           <p className={styles.resultCount}>
-            {visibleListings.length} ACTIVE LISTINGS
+            {visibleListings.length} DEMO LISTINGS
           </p>
         </div>
 
@@ -251,6 +248,7 @@ setShowCreateForm(false);
           <button
             className={typeFilter === "all" ? styles.activeType : ""}
             onClick={() => setTypeFilter("all")}
+            aria-pressed={typeFilter === "all"}
             type="button"
           >
             ALL
@@ -278,6 +276,7 @@ setShowCreateForm(false);
             <button
               key={vibe}
               className={vibeFilter === vibe ? styles.activeVibe : ""}
+              aria-pressed={vibeFilter === vibe}
               onClick={() =>
                 setVibeFilter((current) => (current === vibe ? null : vibe))
               }
@@ -361,7 +360,7 @@ setShowCreateForm(false);
         ) : (
           <div className={styles.empty}>
             <p>NO MATCH YET.</p>
-            <span>Try different filters or use RESET FILTERS.</span>
+            <span>Try different filters or use Clear filters.</span>
           </div>
         )}
       </section>

@@ -1,7 +1,8 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import styles from "./page.module.css";
+import PhotoPicker from "./PhotoPicker";
 
 const ridingVibes = [
   "Just for the views",
@@ -27,7 +28,7 @@ export default function CreateListingForm({
   const availableCategories = riderGender === "Woman" ? ["Women", "Mixed"] : riderGender === "Man" ? ["Men", "Mixed"] : [];
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageName, setImageName] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [preview, setPreview] = useState<Record<string, string> | null>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -62,21 +63,10 @@ export default function CreateListingForm({
     );
   }
 
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    setImageName(file.name);
-    setImagePreview(URL.createObjectURL(file));
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))) {
+    if (photoBusy || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))) {
       return;
     }
 
@@ -86,6 +76,12 @@ export default function CreateListingForm({
     for (const field of fields) {
       publicFields[field] = String(data.get(field) ?? "").trim();
     }
+    for (const field of ["displayName", "region", "languages", "description"]) {
+      const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement | HTMLTextAreaElement;
+      input.setCustomValidity(publicFields[field] ? "" : "Please complete this field.");
+      if (!input.reportValidity()) return;
+    }
+    if (listingType === "team") delete publicFields.age;
     // Only permit ordinary web links in the rendered preview.
     for (const field of ["strava", "instagram"]) {
       const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement;
@@ -167,7 +163,7 @@ export default function CreateListingForm({
               </div>
               <dl className={styles.profileSection} style={{ display: "grid", gap: 16 }}>
                 <div><dt>Languages</dt><dd>{preview.languages}</dd></div>
-                {preview.age && <div><dt>Age</dt><dd>{preview.age}</dd></div>}
+                {listingType === "rider" && preview.age && <div><dt>Age</dt><dd>{preview.age}</dd></div>}
                 {listingType === "team" && (
                   <div><dt>Riders needed</dt><dd>{preview.ridersNeeded === "5" ? "5+" : preview.ridersNeeded}</dd></div>
                 )}
@@ -188,7 +184,10 @@ export default function CreateListingForm({
           </div>
         )}
 
-        <form className={styles.listingForm} onSubmit={handleSubmit} style={preview ? { display: "none" } : undefined}>
+        <form className={styles.listingForm} onSubmit={handleSubmit} onInput={(event) => {
+          const field = event.target;
+          if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) field.setCustomValidity("");
+        }} style={preview ? { display: "none" } : undefined}>
           <fieldset className={styles.formSection}>
             <legend>
               <span>01</span>
@@ -275,46 +274,7 @@ export default function CreateListingForm({
               SHOW YOURSELF
             </legend>
 
-            <div className={styles.uploadGrid}>
-              <div className={styles.uploadPreview}>
-                {imagePreview ? (
-                  // Local preview only. The finished upload will be processed.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imagePreview} alt="Selected upload preview" />
-                ) : (
-                  <div>
-                    <strong>YOUR PHOTO</strong>
-                    <span>OPTIONAL</span>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.uploadCopy}>
-                <p>
-                  Choose a photo to preview it. Cropping is not available in
-                  this demo yet.
-                </p>
-
-                <label className={styles.uploadButton}>
-                  CHOOSE PHOTO
-                  <input
-                    type="file"
-                    accept="image/*,.heic,.heif"
-                    onChange={handleImageChange}
-                  />
-                </label>
-
-                {imageName && (
-                  <p className={styles.fileName}>Selected: {imageName}</p>
-                )}
-
-                <small>
-                  JPG, PNG and WebP work in this demo. HEIC/HEIF preview depends
-                  on your browser; conversion and metadata removal are not yet
-                  implemented. Nothing is uploaded.
-                </small>
-              </div>
-            </div>
+            <PhotoPicker value={imagePreview} onChange={setImagePreview} onBusyChange={setPhotoBusy} />
           </fieldset>
 
           <fieldset className={styles.formSection}>
@@ -329,6 +289,7 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="displayName"
+                  maxLength={60}
                   placeholder={
                     listingType === "rider" ? "e.g. Mara" : "e.g. Team No Sleep"
                   }
@@ -341,28 +302,30 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="region"
+                  maxLength={100}
                   placeholder="e.g. Hamburg"
                   required
                 />
               </label>
 
-              <label>
+              {listingType === "rider" && <label>
                 <span>AGE <em>OPTIONAL</em></span>
                 <input
                   type="number"
                   name="age"
-                  min="18"
+                  min="16"
                   max="99"
                   inputMode="numeric"
                   placeholder="e.g. 34"
                 />
-              </label>
+              </label>}
 
               <label>
                 <span>LANGUAGES</span>
                 <input
                   type="text"
                   name="languages"
+                  maxLength={100}
                   placeholder="e.g. EN, DE"
                   required
                 />
@@ -456,6 +419,8 @@ export default function CreateListingForm({
                 <input
                   type="email"
                   name="email"
+                  autoComplete="email"
+                  maxLength={254}
                   placeholder="you@example.com"
                   required
                 />
@@ -479,7 +444,7 @@ export default function CreateListingForm({
               </label>
 
               {imagePreview && (
-  <label>
+  <label key={imagePreview}>
     <input type="checkbox" required />
     <span>
       I confirm that I may use this photo and that it can be shown
@@ -492,15 +457,15 @@ export default function CreateListingForm({
 
           <div className={styles.formSubmitArea}>
             <p>
-  Your email stays private. We’ll email you a link to confirm your
-  listing. It only goes online after you click it.
+  Your email stays private. This demo only previews your listing;
+  nothing is published or sent. Finish or cancel your photo crop to continue.
 </p>
 
             <button
               ref={previewButtonRef}
               className={styles.formSubmit}
               type="submit"
-              disabled={selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))}
+              disabled={photoBusy || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))}
             >
               PREVIEW LISTING
               <span aria-hidden="true">→</span>
