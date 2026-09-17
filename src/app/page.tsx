@@ -92,7 +92,16 @@ export default function Home() {
   const [genderFilter, setGenderFilter] = useState("all");
 const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 const [showCreateForm, setShowCreateForm] = useState(false);
+const [contactStep, setContactStep] = useState<"profile" | "compose" | "demo">("profile");
+const [contactEmail, setContactEmail] = useState("");
+const [contactMessage, setContactMessage] = useState("");
+const contactHeading = useRef<HTMLHeadingElement | null>(null);
+const messageTrigger = useRef<HTMLButtonElement | null>(null);
 const dialogTrigger = useRef<HTMLButtonElement | null>(null);
+
+useEffect(() => {
+  if (contactStep !== "profile") contactHeading.current?.focus();
+}, [contactStep]);
 
 useEffect(() => {
 if (!selectedListing && !showCreateForm) {    return;
@@ -334,7 +343,13 @@ setShowCreateForm(false);
 <button
   className={styles.profileButton}
   type="button"
-  onClick={(event) => { dialogTrigger.current = event.currentTarget; setSelectedListing(listing); }}
+  onClick={(event) => {
+    dialogTrigger.current = event.currentTarget;
+    setContactStep("profile");
+    setContactEmail("");
+    setContactMessage("");
+    setSelectedListing(listing);
+  }}
 >
                       VIEW PROFILE
                     <span aria-hidden="true">→</span>
@@ -434,14 +449,69 @@ setShowCreateForm(false);
           </div>
         </div>
 
-        <button className={styles.messageButton} type="button">
+        <button
+          ref={messageTrigger}
+          className={styles.messageButton}
+          type="button"
+          hidden={contactStep !== "profile"}
+          style={contactStep !== "profile" ? { display: "none" } : undefined}
+          onClick={() => setContactStep("compose")}
+        >
           SEND A MESSAGE
           <span aria-hidden="true">→</span>
         </button>
 
-        <p className={styles.privacyNote}>
-          Your email address stays private. We only forward your message.
-        </p>
+        {contactStep === "profile" && <p className={styles.privacyNote}>
+          Try the contact form. This demo does not send messages.
+        </p>}
+
+        {contactStep !== "profile" && (
+          <section className={styles.profileSection} aria-labelledby="contact-title">
+            <h3 id="contact-title" ref={contactHeading} tabIndex={-1} style={{ fontSize: "1.5rem", marginBottom: 16 }}>
+              {contactStep === "demo" ? "NOTHING SENT — THIS IS A DEMO" : `CONTACT ${selectedListing.name.toUpperCase()}`}
+            </h3>
+            {contactStep === "compose" ? (
+              <form onSubmit={(event) => {
+                event.preventDefault();
+                const field = event.currentTarget.elements.namedItem("message") as HTMLTextAreaElement;
+                field.setCustomValidity(contactMessage.trim() ? "" : "Please write a message.");
+                if (event.currentTarget.reportValidity()) setContactStep("demo");
+              }}>
+                <p className={styles.fieldHint}>Introduce yourself and tell them why you would make a good team.</p>
+                <div className={styles.fieldGrid}>
+                  <label className={styles.fullField}>
+                    <span>YOUR EMAIL — NOT PUBLIC</span>
+                    <input name="email" type="email" autoComplete="email" required maxLength={254}
+                      value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
+                  </label>
+                  <label className={styles.fullField}>
+                    <span>YOUR MESSAGE</span>
+                    <textarea name="message" rows={5} required maxLength={1500}
+                      value={contactMessage} onChange={(event) => {
+                        event.currentTarget.setCustomValidity("");
+                        setContactMessage(event.target.value);
+                      }} />
+                  </label>
+                </div>
+                <p className={styles.privacyNote} style={{ marginBottom: 16 }}>
+                  Demo only: nothing is sent or saved to a server. In the finished app,
+                  you’ll confirm your email before your message is forwarded.
+                  Closing this profile discards your draft.
+                </p>
+                <button className={styles.formSubmit} type="submit">TRY CONTACT FLOW <span aria-hidden="true">→</span></button>
+              </form>
+            ) : (
+              <>
+                <p className={styles.fieldHint}>In the finished app, you’ll receive an email with a confirmation link. Your message will only be forwarded after you confirm. This demo has sent neither an email nor a message.</p>
+                <button className={styles.formSubmit} type="button" onClick={() => setContactStep("compose")}>BACK TO MESSAGE</button>
+              </>
+            )}
+            <button className={styles.profileButton} style={{ marginTop: 20 }} type="button" onClick={() => {
+              setContactStep("profile");
+              requestAnimationFrame(() => messageTrigger.current?.focus());
+            }}>BACK TO PROFILE <span aria-hidden="true">←</span></button>
+          </section>
+        )}
       </div>
     </section>
   </div>
