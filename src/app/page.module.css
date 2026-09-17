@@ -1,150 +1,547 @@
 .page {
-  --background: #fafafa;
-  --foreground: #fff;
-
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
+  --black: #090909;
+  --white: #f7f7f2;
+  --signal: #ff4b31;
+  --acid: #dfff00;
+  --line: rgba(9, 9, 9, 0.22);
+  min-height: 100vh;
+  background: var(--white);
+  color: var(--black);
 }
 
-.main {
-  display: flex;
-  flex: 1;
-  width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
+.header {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 72px;
+  padding: 0 24px;
+  color: var(--white);
+  background: var(--black);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.brand {
+  width: fit-content;
+  font-size: 1.25rem;
+  font-weight: 950;
+  letter-spacing: -0.07em;
+}
+
+.event {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.menuButton {
+  justify-self: end;
+  padding: 10px 0;
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.hero {
+  position: relative;
+  display: grid;
+  min-height: 610px;
+  overflow: hidden;
+  color: var(--white);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.93) 0%, rgba(0, 0, 0, 0.64) 48%, rgba(0, 0, 0, 0.16) 100%),
+    url("https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/1749046735460-E4191I1QD7VISTCZOFOD/RR_120_Raceday_Bjoern-Reschabek_001-min.jpg")
+      center 42% / cover no-repeat;
+  isolation: isolate;
+}
+
+.hero::after {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 10px;
+  content: "";
+  background: var(--acid);
+}
+
+.heroNumber {
+  position: absolute;
+  top: -0.18em;
+  right: -0.08em;
+  z-index: -1;
+  color: rgba(255, 255, 255, 0.13);
+  font-size: clamp(13rem, 30vw, 34rem);
+  font-weight: 1000;
+  line-height: 0.85;
+  letter-spacing: -0.12em;
+  user-select: none;
+}
+
+.heroContent {
+  align-self: end;
+  width: min(880px, 100%);
+  padding: 80px 48px 64px;
+}
+
+.kicker,
+.sectionLabel {
+  margin-bottom: 18px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  max-width: 820px;
+  font-size: clamp(4rem, 10vw, 9.5rem);
+  font-weight: 1000;
+  line-height: 0.78;
+  letter-spacing: -0.085em;
+  text-transform: uppercase;
 }
 
 .intro {
+  max-width: 660px;
+  margin-top: 32px;
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, 350px);
+  min-height: 64px;
+  margin-top: 36px;
+  padding: 0 22px;
+  color: var(--black);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  background: var(--acid);
+  border: 2px solid var(--acid);
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.createButton:hover {
+  color: var(--white);
+  background: transparent;
+  transform: translateY(-2px);
+}
+
+.createButton span {
+  font-size: 1.4rem;
+}
+
+.finder {
+  padding: 72px 48px 96px;
+}
+
+.finderHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 32px;
+  border-bottom: 3px solid var(--black);
+}
+
+.sectionLabel {
+  margin-bottom: 12px;
+  color: var(--signal);
+}
+
+.finder h2 {
+  max-width: 850px;
+  font-size: clamp(2.8rem, 6.5vw, 6.8rem);
+  font-weight: 1000;
+  line-height: 0.86;
+  letter-spacing: -0.07em;
+  text-transform: uppercase;
+}
+
+.resultCount {
+  flex: 0 0 auto;
+  padding-bottom: 8px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.typeFilters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 28px;
+  border: 2px solid var(--black);
+}
+
+.typeFilters button {
+  min-height: 58px;
+  padding: 12px 18px;
+  color: var(--black);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: transparent;
+  border: 0;
+  border-right: 2px solid var(--black);
+  cursor: pointer;
+}
+
+.typeFilters button:last-child {
+  border-right: 0;
+}
+
+.typeFilters button:hover,
+.typeFilters .activeType {
+  color: var(--white);
+  background: var(--black);
+}
+
+.vibeFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 18px 0 42px;
+}
+
+.vibeFilters button {
+  min-height: 42px;
+  padding: 8px 16px;
+  color: var(--black);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  background: transparent;
+  border: 1.5px solid var(--black);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.vibeFilters button:hover,
+.vibeFilters .activeVibe {
+  color: var(--black);
+  background: var(--acid);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  min-height: 410px;
+  overflow: hidden;
+  background: #fff;
+  border: 2px solid var(--black);
+  box-shadow: 8px 8px 0 var(--black);
+}
+
+.imageWrap {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+  background: #242424;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.9) contrast(1.08);
+  transition: transform 400ms ease;
+}
+
+.card:hover .image {
+  transform: scale(1.035);
+}
+
+.listingType {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  max-width: calc(100% - 28px);
+  padding: 9px 11px;
+  color: var(--black);
+  font-size: 0.67rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  background: var(--acid);
+}
+
+.cardBody {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
+  min-width: 0;
+  padding: 28px;
 }
 
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
+.cardMeta {
+  margin-bottom: 8px;
+  color: #616161;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
+.card h3 {
+  overflow-wrap: anywhere;
+  font-size: clamp(2.3rem, 4vw, 4.4rem);
+  font-weight: 1000;
+  line-height: 0.86;
+  letter-spacing: -0.065em;
+  text-transform: uppercase;
 }
 
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
+.region {
+  margin-top: 9px;
+  color: var(--signal);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.ctas {
+.description {
+  margin-top: 24px;
+  font-size: 1rem;
+  font-weight: 580;
+  line-height: 1.48;
+}
+
+.tags {
   display: flex;
-  flex-direction: row;
-  width: 100%;
-  max-width: 440px;
-  gap: 16px;
-  font-size: 14px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 22px;
 }
 
-.ctas a {
+.tags span {
+  padding: 7px 9px;
+  font-size: 0.67rem;
+  font-weight: 850;
+  line-height: 1.2;
+  background: #ecece6;
+  border: 1px solid #d3d3cc;
+  text-transform: uppercase;
+}
+
+.profileButton {
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 52px;
+  margin-top: auto;
+  padding: 16px 0 0;
+  color: var(--black);
+  font: inherit;
+  font-size: 0.77rem;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  background: transparent;
+  border: 0;
+  border-top: 2px solid var(--black);
   cursor: pointer;
-  width: fit-content;
-  font-weight: 500;
 }
 
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
-  gap: 8px;
+.profileButton span {
+  font-size: 1.2rem;
+  transition: transform 160ms ease;
 }
 
-a.secondary {
-  border-color: var(--button-secondary-border);
+.profileButton:hover span {
+  transform: translateX(5px);
 }
 
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  padding: 48px 24px;
+  text-align: center;
+  border: 2px dashed var(--black);
+}
+
+.empty p {
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 1000;
+  letter-spacing: -0.06em;
+}
+
+.empty span {
+  margin-top: 10px;
+  font-size: 1rem;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 48px;
+  color: var(--white);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  background: var(--black);
+}
+
+.menuButton:focus-visible,
+.createButton:focus-visible,
+.typeFilters button:focus-visible,
+.vibeFilters button:focus-visible,
+.profileButton:focus-visible {
+  outline: 3px solid var(--signal);
+  outline-offset: 4px;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: 1fr;
   }
 
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
+  .card {
+    min-height: 390px;
   }
 }
 
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
+@media (max-width: 720px) {
+  .header {
+    grid-template-columns: 1fr auto;
+    min-height: 62px;
+    padding: 0 18px;
+  }
+
+  .event {
+    display: none;
+  }
+
+  .hero {
+    min-height: 620px;
+    background:
+      linear-gradient(0deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.35) 75%),
+      url("https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/1749046735460-E4191I1QD7VISTCZOFOD/RR_120_Raceday_Bjoern-Reschabek_001-min.jpg")
+        56% center / cover no-repeat;
+  }
+
+  .heroNumber {
+    top: 18px;
+    right: -18px;
+    font-size: 13rem;
+  }
+
+  .heroContent {
+    padding: 72px 18px 46px;
+  }
+
+  .hero h1 {
+    font-size: clamp(4.2rem, 22vw, 7rem);
+    line-height: 0.8;
   }
 
   .intro {
-    gap: 16px;
+    margin-top: 24px;
+    font-size: 1rem;
   }
 
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
+  .createButton {
+    width: 100%;
+  }
+
+  .finder {
+    padding: 54px 18px 70px;
+  }
+
+  .finderHeading {
+    display: block;
+  }
+
+  .finder h2 {
+    font-size: clamp(3rem, 15vw, 5.2rem);
+  }
+
+  .resultCount {
+    margin-top: 22px;
+  }
+
+  .typeFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .typeFilters button {
+    min-height: 52px;
+    border-right: 0;
+    border-bottom: 2px solid var(--black);
+  }
+
+  .typeFilters button:last-child {
+    border-bottom: 0;
+  }
+
+  .vibeFilters {
+    flex-wrap: nowrap;
+    margin-right: -18px;
+    padding-right: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .vibeFilters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vibeFilters button {
+    flex: 0 0 auto;
+  }
+
+  .card {
+    display: block;
+    min-height: 0;
+    box-shadow: 5px 5px 0 var(--black);
+  }
+
+.imageWrap {
+  height: 310px;
+  min-height: 0;
+}
+  .cardBody {
+    min-height: 390px;
+    padding: 24px 20px;
+  }
+
+  .card h3 {
+    font-size: clamp(3rem, 15vw, 4.6rem);
+  }
+
+  .footer {
+    display: grid;
+    padding: 24px 18px;
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
+@media (prefers-reduced-motion: reduce) {
+  .createButton,
+  .image,
+  .profileButton span {
+    transition: none;
   }
-
-  .page {
-    --background: #000;
-    --foreground: #000;
-
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
-}
-
-.code {
-  font-family: var(--font-geist-mono);
-  font-size: 0.9em;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  padding: 0.1em 0.4em;
-  border-radius: 6px;
 }
