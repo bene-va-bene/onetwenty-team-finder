@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";import styles from "./page.module.css";
+import { useEffect, useMemo, useRef, useState } from "react";
+import styles from "./page.module.css";
 
 import CreateListingForm from "./CreateListingForm";
 
@@ -91,6 +92,7 @@ export default function Home() {
   const [genderFilter, setGenderFilter] = useState("all");
 const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 const [showCreateForm, setShowCreateForm] = useState(false);
+const dialogTrigger = useRef<HTMLButtonElement | null>(null);
 
 useEffect(() => {
 if (!selectedListing && !showCreateForm) {    return;
@@ -101,11 +103,52 @@ if (!selectedListing && !showCreateForm) {    return;
   const previousBodyTop = document.body.style.top;
   const previousBodyWidth = document.body.style.width;
   const previousHtmlOverflow = document.documentElement.style.overflow;
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"]');
+  if (!dialog) return;
+  const returnFocus = dialogTrigger.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const previousTabIndex = dialog.getAttribute("tabindex");
+  dialog.tabIndex = -1;
+
+  function focusableElements() {
+    return Array.from(dialog!.querySelectorAll<HTMLElement>(
+      'a[href], button, input, select, textarea, [tabindex]'
+    )).filter((element) => element.tabIndex >= 0 &&
+      !element.matches(':disabled, [type="hidden"]') &&
+      element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility !== "hidden");
+  }
+
+  function keepFocusInside(event: FocusEvent) {
+    if (event.target instanceof Node && !dialog!.contains(event.target)) {
+      (focusableElements()[0] ?? dialog!).focus({ preventScroll: true });
+    }
+  }
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") {
+      event.preventDefault();
 setSelectedListing(null);
 setShowCreateForm(false);
+      return;
+    }
+    if (event.key === "Tab") {
+      const elements = focusableElements();
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      const active = document.activeElement;
+      if (!first) {
+        event.preventDefault();
+        dialog!.focus({ preventScroll: true });
+      } else if (!elements.includes(active as HTMLElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   }
 
@@ -115,6 +158,8 @@ setShowCreateForm(false);
   document.body.style.width = "100%";
 
   window.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("focusin", keepFocusInside);
+  (focusableElements()[0] ?? dialog).focus({ preventScroll: true });
 
   return () => {
     document.documentElement.style.overflow = previousHtmlOverflow;
@@ -123,6 +168,10 @@ setShowCreateForm(false);
     document.body.style.width = previousBodyWidth;
 
     window.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("focusin", keepFocusInside);
+    if (previousTabIndex === null) dialog.removeAttribute("tabindex");
+    else dialog.setAttribute("tabindex", previousTabIndex);
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     window.scrollTo(0, scrollPosition);
   };
 }, [selectedListing, showCreateForm]);
@@ -169,7 +218,7 @@ setShowCreateForm(false);
           <button
   className={styles.createButton}
   type="button"
-  onClick={() => setShowCreateForm(true)}
+  onClick={(event) => { dialogTrigger.current = event.currentTarget; setShowCreateForm(true); }}
 >
   CREATE A LISTING
   <span aria-hidden="true">↗</span>
@@ -285,7 +334,7 @@ setShowCreateForm(false);
 <button
   className={styles.profileButton}
   type="button"
-  onClick={() => setSelectedListing(listing)}
+  onClick={(event) => { dialogTrigger.current = event.currentTarget; setSelectedListing(listing); }}
 >
                       VIEW PROFILE
                     <span aria-hidden="true">→</span>
