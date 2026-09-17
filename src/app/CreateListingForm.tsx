@@ -19,6 +19,12 @@ export default function CreateListingForm({
   onClose,
 }: CreateListingFormProps) {
   const [listingType, setListingType] = useState<"rider" | "team">("rider");
+  const [riderGender, setRiderGender] = useState("");
+  const [teamCategory, setTeamCategory] = useState("Mixed");
+  const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
+  const [mixedSeeking, setMixedSeeking] = useState("Anyone");
+  const seeking = teamCategory === "Mixed" ? mixedSeeking : teamCategory;
+  const availableCategories = riderGender === "Woman" ? ["Women", "Mixed"] : riderGender === "Man" ? ["Men", "Mixed"] : [];
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string | null>(null);
@@ -70,7 +76,7 @@ export default function CreateListingForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (selectedVibes.length === 0) {
+    if (selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))) {
       return;
     }
 
@@ -140,6 +146,13 @@ export default function CreateListingForm({
                 {preview.displayName}
               </h3>
               <p className={styles.profileRegion}>{preview.region}</p>
+              <div className={styles.profileSection}>
+                <p className={styles.profileLabel}>{listingType === "rider" ? "OPEN TO TEAM CATEGORIES" : "TEAM CATEGORY"}</p>
+                <div className={styles.categoryTags}>
+                  {(listingType === "rider" ? preferredCategories : [teamCategory]).map((category) => <span key={category}>{category}</span>)}
+                  <span>{listingType === "rider" ? riderGender : `Seeking: ${seeking}`}</span>
+                </div>
+              </div>
               <div className={styles.profileSection}>
                 <p className={styles.profileLabel}>ABOUT</p>
                 <p className={styles.profileDescription} style={{ whiteSpace: "pre-wrap" }}>
@@ -211,6 +224,49 @@ export default function CreateListingForm({
                 </span>
               </label>
             </div>
+          </fieldset>
+
+          <fieldset className={styles.formSection}>
+            <legend>TEAM CATEGORY &amp; RIDERS</legend>
+            {listingType === "rider" ? (
+              <>
+                <div className={styles.fieldGrid}>
+                  <label><span>GENDER FOR RACE CLASSIFICATION</span>
+                    <select required value={riderGender} onChange={(event) => {
+                      const value = event.target.value;
+                      setRiderGender(value);
+                      setPreferredCategories((current) => current.filter((category) => category === "Mixed" || category === (value === "Woman" ? "Women" : "Men")));
+                    }}>
+                      <option value="">Please select</option><option>Woman</option><option>Man</option>
+                    </select>
+                  </label>
+                </div>
+                <p className={styles.fieldHint} style={{ marginTop: 20 }}>Which team categories would work for you? Select all that apply.</p>
+                <div className={styles.formVibes}>
+                  {availableCategories.map((category) => (
+                    <label key={category}><input type="checkbox" checked={preferredCategories.includes(category)} onChange={() => setPreferredCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])} /><span>{category}</span></label>
+                  ))}
+                </div>
+                {preferredCategories.length === 0 && <p className={styles.vibeRequirement}>Select your race classification and at least one team category.</p>}
+              </>
+            ) : (
+              <div className={styles.fieldGrid}>
+                <label><span>TEAM CATEGORY</span>
+                  <select value={teamCategory} onChange={(event) => setTeamCategory(event.target.value)}>
+                    <option>Men</option><option>Women</option><option>Mixed</option>
+                  </select>
+                </label>
+                <label><span>WHO ARE YOU LOOKING FOR?</span>
+                  <select value={seeking} disabled={teamCategory !== "Mixed"} onChange={(event) => setMixedSeeking(event.target.value)}>
+                    {teamCategory === "Mixed" ? <><option>Anyone</option><option>Women</option><option>Men</option></> : <option>{teamCategory}</option>}
+                  </select>
+                </label>
+              </div>
+            )}
+            <p className={styles.fieldHint} style={{ marginTop: 20 }}>These selections appear on your public listing. The finder helps you connect; it does not register you for the race.</p>
+            {(listingType === "team" ? teamCategory === "Mixed" : preferredCategories.includes("Mixed")) && (
+              <p className={styles.fieldHint}>Mixed road-race timing requires at least three finishers, including a woman and a man. <a href="https://www.808project.de/one-twenty/ausschreibung" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>Read the race rules</a>.</p>
+            )}
           </fieldset>
 
           <fieldset className={styles.formSection}>
@@ -444,7 +500,7 @@ export default function CreateListingForm({
               ref={previewButtonRef}
               className={styles.formSubmit}
               type="submit"
-              disabled={selectedVibes.length === 0}
+              disabled={selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))}
             >
               PREVIEW LISTING
               <span aria-hidden="true">→</span>

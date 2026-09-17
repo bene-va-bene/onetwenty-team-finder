@@ -15,6 +15,9 @@ type Listing = {
   description: string;
   vibes: string[];
   image: string;
+  categories: string[];
+  riderGender?: string;
+  seeking?: string;
 };
 
 const vibes = [
@@ -30,6 +33,8 @@ const listings: Listing[] = [
     id: 1,
     type: "rider",
     name: "Mara",
+    categories: ["Women", "Mixed"],
+    riderGender: "Woman",
     region: "Hamburg",
     meta: "Rider looking for a team",
     description:
@@ -42,6 +47,8 @@ const listings: Listing[] = [
     id: 2,
     type: "team",
     name: "Team No Sleep",
+    categories: ["Mixed"],
+    seeking: "Women",
     region: "Berlin",
     meta: "Team looking for 2 riders",
     description:
@@ -53,6 +60,8 @@ image:
     id: 3,
     type: "rider",
     name: "Nico",
+    categories: ["Men", "Mixed"],
+    riderGender: "Man",
     region: "Cologne",
     meta: "Rider looking for a team",
     description:
@@ -65,6 +74,8 @@ image:
     id: 4,
     type: "team",
     name: "Gipfelstürmer",
+    categories: ["Men"],
+    seeking: "Men",
     region: "Munich",
     meta: "Team looking for 1 rider",
     description:
@@ -77,6 +88,7 @@ image:
 export default function Home() {
   const [typeFilter, setTypeFilter] = useState<"all" | ListingType>("all");
   const [vibeFilter, setVibeFilter] = useState<string | null>(null);
+  const [genderFilter, setGenderFilter] = useState("all");
 const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -122,9 +134,12 @@ setShowCreateForm(false);
       const matchesVibe =
         vibeFilter === null || listing.vibes.includes(vibeFilter);
 
-      return matchesType && matchesVibe;
+      const matchesGender = genderFilter === "all" || (listing.type === "rider"
+        ? listing.riderGender === (genderFilter === "Women" ? "Woman" : "Man")
+        : listing.seeking === "Anyone" || listing.seeking === genderFilter);
+      return matchesType && matchesVibe && matchesGender;
     });
-  }, [typeFilter, vibeFilter]);
+  }, [typeFilter, vibeFilter, genderFilter]);
 
   return (
     <main className={styles.page}>
@@ -215,6 +230,23 @@ setShowCreateForm(false);
           ))}
         </div>
 
+        <div style={{ marginBottom: 32 }}>
+          <p id="gender-filter-label" className={styles.profileLabel}>{typeFilter === "team" ? "TEAMS LOOKING FOR" : typeFilter === "rider" ? "RIDERS" : "RIDERS / TEAMS LOOKING FOR"}</p>
+          <div className={styles.vibeFilters} role="group" aria-labelledby="gender-filter-label" style={{ margin: "10px 0 0", flexWrap: "wrap", overflow: "visible", paddingRight: 0 }}>
+            {["Women", "Men"].map((gender) => (
+              <button key={gender} type="button"
+                className={genderFilter === gender ? styles.activeVibe : ""}
+                aria-pressed={genderFilter === gender}
+                onClick={() => setGenderFilter((current) => current === gender ? "all" : gender)}>
+                {gender}
+              </button>
+            ))}
+            {(typeFilter !== "all" || vibeFilter !== null || genderFilter !== "all") && (
+              <button type="button" onClick={() => { setTypeFilter("all"); setVibeFilter(null); setGenderFilter("all"); }}>Clear filters ×</button>
+            )}
+          </div>
+        </div>
+
         {visibleListings.length > 0 ? (
           <div className={styles.grid}>
             {visibleListings.map((listing) => (
@@ -238,6 +270,10 @@ setShowCreateForm(false);
                   <p className={styles.cardMeta}>{listing.meta}</p>
                   <h3>{listing.name}</h3>
                   <p className={styles.region}>{listing.region}</p>
+                  <div className={styles.categoryTags}>
+                    {listing.categories.map((category) => <span key={category}>{category}</span>)}
+                    <span>{listing.type === "rider" ? listing.riderGender : `Seeking: ${listing.seeking}`}</span>
+                  </div>
                   <p className={styles.description}>{listing.description}</p>
 
                   <div className={styles.tags}>
@@ -261,7 +297,7 @@ setShowCreateForm(false);
         ) : (
           <div className={styles.empty}>
             <p>NO MATCH YET.</p>
-            <span>Try another Riding Vibe or show all listings.</span>
+            <span>Try different filters or use RESET FILTERS.</span>
           </div>
         )}
       </section>
@@ -314,6 +350,13 @@ setShowCreateForm(false);
         <p className={styles.cardMeta}>{selectedListing.meta}</p>
         <h2 id="profile-title">{selectedListing.name}</h2>
         <p className={styles.profileRegion}>{selectedListing.region}</p>
+        <div className={styles.profileSection}>
+          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "OPEN TO TEAM CATEGORIES" : "TEAM CATEGORY"}</p>
+          <div className={styles.categoryTags}>
+            {selectedListing.categories.map((category) => <span key={category}>{category}</span>)}
+            <span>{selectedListing.type === "rider" ? selectedListing.riderGender : `Seeking: ${selectedListing.seeking}`}</span>
+          </div>
+        </div>
 
         <div className={styles.profileSection}>
           <p className={styles.profileLabel}>ABOUT</p>

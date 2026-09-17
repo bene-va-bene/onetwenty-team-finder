@@ -40,6 +40,27 @@ Still a frontend prototype: no authentication, database, email delivery
 or publication. Image cropping, HEIC conversion and metadata removal
 are not implemented.
 
-Next: fix listing-type filter semantics. “I need a team” must show
-teams seeking riders; “We need riders” must show riders seeking teams.
-This progress section supersedes the initial status above.
+Listing-type filters corrected and verified:
+- “I need a team” shows teams seeking riders.
+- “We need riders” shows riders seeking teams.
+
+Next: improve keyboard navigation in dialogs and add remaining
+listing filters (region and language).
+
+## Latest decisions — 17 September 2026
+
+These decisions override earlier conflicting descriptions:
+
+- Search filters: listing type, Riding Vibe and gender.
+- Gender filters use toggle buttons styled like Riding Vibes.
+- No team-category filter in the search.
+- Team categories remain visible in forms, profiles and previews.
+- Riders select their race-classification gender and suitable team categories.
+- Teams select Men, Women or Mixed.
+- Mixed teams can seek Women, Men or Anyone.
+- Age is optional for individual riders only; absent from team forms and previews.
+- Preview → Back to edit preserves form inputs.
+- Production build passes.
+
+Still a frontend prototype: no publication, authentication, database,
+email delivery or processed image uploads.
