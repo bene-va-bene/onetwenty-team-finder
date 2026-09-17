@@ -182,21 +182,23 @@ setShowCreateForm(false);
           >
             ALL
           </button>
-          <button
-            className={typeFilter === "rider" ? styles.activeType : ""}
-            onClick={() => setTypeFilter("rider")}
-            type="button"
-          >
-            I NEED A TEAM
-          </button>
-          <button
-            className={typeFilter === "team" ? styles.activeType : ""}
-            onClick={() => setTypeFilter("team")}
-            type="button"
-          >
-            WE NEED RIDERS
-          </button>
-        </div>
+<button
+  className={typeFilter === "team" ? styles.activeType : ""}
+  onClick={() => setTypeFilter("team")}
+  aria-pressed={typeFilter === "team"}
+  type="button"
+>
+  I NEED A TEAM
+</button>
+
+<button
+  className={typeFilter === "rider" ? styles.activeType : ""}
+  onClick={() => setTypeFilter("rider")}
+  aria-pressed={typeFilter === "rider"}
+  type="button"
+>
+  WE NEED RIDERS
+</button>        </div>
 
         <div className={styles.vibeFilters} aria-label="Riding vibe">
           {vibes.map((vibe) => (
