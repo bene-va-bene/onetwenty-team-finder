@@ -807,3 +807,408 @@
     margin-top: 34px;
   }
 }
+
+.formBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.formPanel,
+.successPanel {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  color: var(--black);
+  background: var(--white);
+  border: 2px solid var(--black);
+}
+
+.formHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 32px;
+  color: var(--white);
+  background: var(--black);
+}
+
+.formEyebrow {
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.formHeader h2,
+.successPanel h2 {
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.formClose {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--white);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 800;
+  background: transparent;
+  border: 1px solid currentColor;
+  cursor: pointer;
+}
+
+.listingForm {
+  padding: 32px;
+}
+
+.formSection {
+  min-width: 0;
+  margin: 0 0 36px;
+  padding: 0 0 32px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.formSection legend {
+  display: block;
+  width: 100%;
+  margin-bottom: 22px;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.formSection legend > span {
+  margin-right: 12px;
+  color: var(--signal);
+}
+
+.formTypeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.formTypeOptions label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 2px solid var(--black);
+  cursor: pointer;
+}
+
+.formTypeOptions label:has(input:checked) {
+  background: var(--acid);
+}
+
+.formTypeOptions label > span {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.formTypeOptions strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.formTypeOptions input,
+.formVibes input,
+.consentList input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--black);
+}
+
+.uploadGrid {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.uploadPreview {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #e6e6df;
+  border: 2px dashed var(--black);
+}
+
+.uploadPreview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.uploadPreview > div {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.uploadPreview strong,
+.uploadPreview span {
+  font-size: 0.875rem;
+}
+
+.uploadCopy p {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.uploadButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin: 16px 0;
+  padding: 12px 18px;
+  color: var(--white);
+  font-size: 0.875rem;
+  font-weight: 800;
+  background: var(--black);
+  cursor: pointer;
+}
+
+.uploadButton input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.uploadCopy small {
+  display: block;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #555;
+}
+
+.fileName {
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 18px;
+}
+
+.fieldGrid label,
+.fullField {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+}
+
+.fieldGrid label > span,
+.fullField > span {
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.fieldGrid em {
+  margin-left: 5px;
+  color: #555;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.fieldGrid input,
+.fieldGrid select,
+.fullField textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 12px;
+  color: var(--black);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  background: #fff;
+  border: 1.5px solid var(--black);
+  border-radius: 0;
+}
+
+.fullField {
+  grid-column: 1 / -1;
+}
+
+.fullField textarea {
+  min-height: 160px;
+  margin-bottom: 22px;
+  resize: vertical;
+}
+
+.fieldHint {
+  margin-bottom: 16px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.formVibes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.formVibes label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--black);
+  cursor: pointer;
+}
+
+.formVibes label:has(input:checked) {
+  background: var(--acid);
+}
+
+.formVibes span {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.vibeRequirement {
+  margin-top: 12px;
+  color: #555;
+  font-size: 0.875rem;
+}
+
+.consentList {
+  display: grid;
+  gap: 18px;
+}
+
+.consentList label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.formSubmitArea {
+  display: grid;
+  gap: 20px;
+}
+
+.formSubmitArea p {
+  max-width: 600px;
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.formSubmit,
+.successPanel button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: 60px;
+  padding: 16px 20px;
+  color: var(--black);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 900;
+  background: var(--acid);
+  border: 2px solid var(--black);
+  cursor: pointer;
+}
+
+.formSubmit:disabled {
+  color: #555;
+  background: #ddd;
+  cursor: not-allowed;
+}
+
+.successPanel {
+  margin-top: 8vh;
+  padding: 36px;
+}
+
+.successPanel > p:not(.formEyebrow) {
+  margin: 24px 0;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.formPanel input:focus-visible,
+.formPanel select:focus-visible,
+.formPanel textarea:focus-visible,
+.formPanel button:focus-visible,
+.successPanel button:focus-visible,
+.uploadButton:focus-within {
+  outline: 3px solid var(--signal);
+  outline-offset: 4px;
+}
+
+@media (max-width: 600px) {
+  .formBackdrop {
+    padding: 0;
+  }
+
+  .formPanel,
+  .successPanel {
+    min-height: 100dvh;
+    margin: 0;
+    border: 0;
+  }
+
+  .formHeader {
+    flex-direction: column-reverse;
+    gap: 20px;
+    padding: 20px 18px 26px;
+  }
+
+  .formClose {
+    align-self: flex-end;
+  }
+
+  .listingForm {
+    padding: 28px 18px;
+  }
+
+  .formTypeOptions,
+  .fieldGrid,
+  .uploadGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .uploadPreview {
+    width: min(200px, 100%);
+  }
+
+  .formVibes {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .successPanel {
+    padding: 36px 18px;
+  }
+}

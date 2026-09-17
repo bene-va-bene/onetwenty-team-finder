@@ -25,3 +25,21 @@ Local project:
 
 ```text
 /Users/benedikteiche/Library/CloudStorage/GoogleDrive-bene@rad-race.com/Meine Ablage/Events/Onetwenty/2027/team-finder
+
+## Progress — 17 September 2026
+
+Implemented:
+- Responsive listing overview with fictional sample data and filters.
+- Profile overlay with Escape handling and background scroll lock.
+- Create-listing form with multiple Riding Vibes and local photo preview.
+- Public listing preview; “Back to edit” preserves form inputs.
+- Photo consent required only when a photo is selected.
+- Production build passes.
+
+Still a frontend prototype: no authentication, database, email delivery
+or publication. Image cropping, HEIC conversion and metadata removal
+are not implemented.
+
+Next: fix listing-type filter semantics. “I need a team” must show
+teams seeking riders; “We need riders” must show riders seeking teams.
+This progress section supersedes the initial status above.

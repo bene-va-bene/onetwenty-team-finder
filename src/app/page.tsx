@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";import styles from "./page.module.css";
 
+import CreateListingForm from "./CreateListingForm";
+
 type ListingType = "rider" | "team";
 
 type Listing = {
@@ -76,10 +78,10 @@ export default function Home() {
   const [typeFilter, setTypeFilter] = useState<"all" | ListingType>("all");
   const [vibeFilter, setVibeFilter] = useState<string | null>(null);
 const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+const [showCreateForm, setShowCreateForm] = useState(false);
 
 useEffect(() => {
-  if (!selectedListing) {
-    return;
+if (!selectedListing && !showCreateForm) {    return;
   }
 
   const scrollPosition = window.scrollY;
@@ -90,7 +92,8 @@ useEffect(() => {
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") {
-      setSelectedListing(null);
+setSelectedListing(null);
+setShowCreateForm(false);
     }
   }
 
@@ -110,7 +113,7 @@ useEffect(() => {
     window.removeEventListener("keydown", handleKeyDown);
     window.scrollTo(0, scrollPosition);
   };
-}, [selectedListing]);
+}, [selectedListing, showCreateForm]);
 
   const visibleListings = useMemo(() => {
     return listings.filter((listing) => {
@@ -148,10 +151,14 @@ useEffect(() => {
             your pace, your plans and your idea of a good day on the bike.
           </p>
 
-          <button className={styles.createButton} type="button">
-            CREATE A LISTING
-            <span aria-hidden="true">↗</span>
-          </button>
+          <button
+  className={styles.createButton}
+  type="button"
+  onClick={() => setShowCreateForm(true)}
+>
+  CREATE A LISTING
+  <span aria-hidden="true">↗</span>
+</button>
         </div>
       </section>
 
@@ -212,6 +219,7 @@ useEffect(() => {
               <article className={styles.card} key={listing.id}>
                 <div className={styles.imageWrap}>
                   {/* Temporary public event image used only for the prototype. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={listing.image}
                     alt=""
@@ -256,7 +264,10 @@ useEffect(() => {
         )}
       </section>
 
-      {selectedListing && (
+      {showCreateForm && (
+  <CreateListingForm onClose={() => setShowCreateForm(false)} />
+)}
+{selectedListing && (
   <div
     className={styles.modalBackdrop}
     role="presentation"
