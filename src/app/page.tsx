@@ -342,8 +342,8 @@ setShowMessages(false);
                   <h3>{listing.name}</h3>
                   <p className={styles.region}>{listing.region}</p>
                   <div className={styles.categoryTags}>
-                    {listing.categories.map((category) => <span key={category}>{category}</span>)}
-                    <span>{listing.type === "rider" ? listing.riderGender : `Seeking: ${listing.seeking}`}</span>
+                    <span>{listing.type === "rider" ? `Rider: ${listing.riderGender}` : `Looking for: ${listing.seeking}`}</span>
+                    <span>{listing.type === "rider" ? "Open to: " : "Team category: "}{listing.categories.join(", ")}</span>
                   </div>
                   <p className={styles.description}>{listing.description}</p>
 
@@ -431,10 +431,10 @@ setShowMessages(false);
         <h2 id="profile-title">{selectedListing.name}</h2>
         <p className={styles.profileRegion}>{selectedListing.region}</p>
         <div className={styles.profileSection}>
-          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "OPEN TO TEAM CATEGORIES" : "TEAM CATEGORY"}</p>
+          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER & TEAM PREFERENCE" : "TEAM & RIDER SEARCH"}</p>
           <div className={styles.categoryTags}>
-            {selectedListing.categories.map((category) => <span key={category}>{category}</span>)}
-            <span>{selectedListing.type === "rider" ? selectedListing.riderGender : `Seeking: ${selectedListing.seeking}`}</span>
+            <span>{selectedListing.type === "rider" ? `Rider: ${selectedListing.riderGender}` : `Looking for: ${selectedListing.seeking}`}</span>
+                    <span>{selectedListing.type === "rider" ? "Open to: " : "Team category: "}{selectedListing.categories.join(", ")}</span>
           </div>
         </div>
 
