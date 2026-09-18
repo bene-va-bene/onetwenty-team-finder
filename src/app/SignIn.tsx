@@ -11,7 +11,7 @@ export default function SignIn({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [retryAt, setRetryAt] = useState(0);
   return <div className={styles.formBackdrop}><section className={styles.formPanel} role="dialog" aria-modal="true" aria-labelledby="signin-title">
-    <header className={styles.formHeader}><div><p className={styles.formEyebrow}>NO PASSWORD NEEDED</p><h2 id="signin-title">YOUR EMAIL. YOUR LISTINGS.</h2></div><button type="button" className={styles.formClose} onClick={onClose}>CLOSE ×</button></header>
+    <header className={styles.formHeader}><div><p className={styles.formEyebrow}>NO PASSWORD NEEDED</p><h2 id="signin-title">YOUR EMAIL. YOUR CREW.</h2></div><button type="button" className={styles.formClose} onClick={onClose}>CLOSE ×</button></header>
     <form className={styles.listingForm} onSubmit={async (event) => {
       event.preventDefault(); if (busy) return;
       if (Date.now() < retryAt) { setError("Please wait one minute before requesting another email."); return; }
@@ -22,9 +22,9 @@ export default function SignIn({ onClose }: { onClose: () => void }) {
         setSent(true); setRetryAt(Date.now() + 60_000);
       } catch (error) { setError(message(error)); } finally { setBusy(false); }
     }}>
-      <p className={styles.fieldHint}>We’ll email you a sign-in link. Open it to create or manage your listings. Your email address stays private.</p>
+      <p className={styles.fieldHint}>We’ll email you a sign-in link. Open it to message other riders or manage your listings. You don’t need a listing to chat. Your email address stays private.</p>
       <div className={styles.fieldGrid}><label className={styles.fullField}><span>EMAIL ADDRESS</span><input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => { setEmail(event.target.value); setSent(false); }} /></label></div>
-      {sent && <p className={styles.notice} role="status">Check your inbox, including spam. Open the sign-in link, then return to Create a listing or My listings.</p>}
+      {sent && <p className={styles.notice} role="status">Check your inbox, including spam. Open the sign-in link, then open Messages or choose a listing to contact.</p>}
       {!isConfigured && <p className={styles.notice}>The Team Finder connection has not been configured yet.</p>}
       {error && <p className={styles.notice} role="alert">{error}</p>}
       <button className={styles.formSubmit} type="submit" disabled={busy || !isConfigured}>{busy ? "SENDING…" : sent ? "SEND ANOTHER LINK" : "EMAIL ME A SIGN-IN LINK"}</button>

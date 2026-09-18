@@ -1268,3 +1268,40 @@
 .notice button { font: inherit; padding: 10px 14px; cursor: pointer; }
 .manageCard { padding: 24px 0; border-bottom: 2px solid #111; }
 .manageCard h3 { font-size: 2rem; line-height: 1.1; overflow-wrap: anywhere; }
+
+.chatTitle { font-size: clamp(1.4rem, 4vw, 2rem); margin: 24px 0 8px; overflow-wrap: anywhere; }
+.chatThreads { display: grid; gap: 12px; margin: 24px 0; }
+.chatThreads button { display: grid; gap: 8px; border: 2px solid #111; background: white; padding: 20px; color: #111; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.chatThreads button:hover, .chatThreads button:focus-visible { background: #efffb0; }
+.chatThreads strong { font-size: 1.2rem; }
+.chatLog { height: min(45dvh, 450px); min-height: 180px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 12px; padding: 16px 4px; margin: 16px 0; }
+.chatBubble { flex-shrink: 0; align-self: flex-start; max-width: 90%; padding: 14px; background: #fff; border: 1px solid #111; overflow-wrap: anywhere; }
+.chatBubble p { white-space: pre-wrap; margin: 8px 0; line-height: 1.5; }
+.chatBubble strong, .chatBubble time { font-size: .75rem; }
+.chatMine { align-self: flex-end; background: #efffb0; }
+
+.messagesPanel { display: flex; flex-direction: column; height: calc(100dvh - 56px); min-height: 0; }
+.messagesPanel .formHeader { flex: 0 0 auto; padding: 18px 24px; gap: 12px; flex-direction: row; }
+.messagesPanel .formHeader h2 { font-size: 2rem; }
+.messagesPanel .formEyebrow { font-size: .7rem; margin-bottom: 6px; }
+.messagesBody { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px; }
+.messagesChatBody { display: flex; flex-direction: column; overflow: hidden; }
+.messagesChatBody > button { align-self: flex-start; flex-shrink: 0; }
+.chatConversation { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chatConversation > h3, .chatConversation > p, .chatConversation > button, .chatComposer { flex-shrink: 0; }
+.chatConversation > button { align-self: flex-start; margin-top: 8px; padding: 8px 12px; font-size: .75rem; }
+.chatConversation .chatTitle { margin-top: 12px; font-size: 1.25rem; }
+.chatConversation .fieldHint { font-size: .8rem; }
+.chatConversation .chatLog { flex: 1; height: auto; min-height: 80px; margin: 8px 0; }
+.chatComposer textarea { min-height: 70px; height: 70px; resize: vertical; }
+.chatComposer .formSubmit { margin-top: 8px; min-height: 44px; padding: 12px 16px; }
+@media (max-width: 600px) {
+  .messagesPanel { height: 100dvh; min-height: 0; }
+  .messagesPanel .formHeader { padding: 14px 18px; }
+  .messagesPanel .formHeader h2 { font-size: 1.7rem; }
+  .messagesBody { padding: 12px 18px; }
+}
+@media (max-height: 600px) {
+  .messagesChatBody { overflow-y: auto; }
+  .chatConversation { min-height: 430px; }
+}

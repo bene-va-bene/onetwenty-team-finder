@@ -37,7 +37,7 @@ export default function MyListings({ onClose, onEdit, onChanged }: { onClose: ()
           {row.status !== "draft" && <button className={styles.photoButton} type="button" disabled={busy || Boolean(row.status !== "active" && row.expires_at && new Date(row.expires_at).getTime() <= now)} onClick={() => void act(row, row.status === "active" ? "closed" : "active")}>{row.status === "active" ? "CLOSE LISTING" : "REOPEN LISTING"}</button>}
           <button className={styles.photoButton} type="button" disabled={busy} onClick={() => setDeleting(row.id)}>DELETE PERMANENTLY</button>
         </div>
-        {deleting === row.id && <div className={styles.notice}><p>Delete this listing and its photos permanently? This cannot be undone. Your sign-in account remains available.</p><div className={styles.photoActions}><button type="button" className={styles.photoButton} disabled={busy} onClick={() => void act(row, "delete")}>{busy ? "DELETING…" : "YES, DELETE"}</button><button type="button" className={styles.photoButton} disabled={busy} onClick={() => setDeleting(null)}>CANCEL</button></div></div>}
+        {deleting === row.id && <div className={styles.notice}><p>Delete this listing, its photos and all its conversations permanently? This cannot be undone. Your sign-in account remains available.</p><div className={styles.photoActions}><button type="button" className={styles.photoButton} disabled={busy} onClick={() => void act(row, "delete")}>{busy ? "DELETING…" : "YES, DELETE"}</button><button type="button" className={styles.photoButton} disabled={busy} onClick={() => setDeleting(null)}>CANCEL</button></div></div>}
       </article>)}
     </div>
   </section></div>;
