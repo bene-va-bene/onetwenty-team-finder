@@ -1256,3 +1256,15 @@
   .finder h2 { font-size: clamp(2rem, 12vw, 4rem); }
   .profileContent h2 { font-size: clamp(3rem, 18vw, 5rem); }
 }
+.accountNav { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
+.header { grid-template-columns: 1fr auto auto; gap: 20px; padding-top: 12px; padding-bottom: 12px; }
+@media (max-width: 720px) {
+  .header { grid-template-columns: 1fr auto; gap: 12px; }
+  .accountNav { grid-column: 1 / -1; justify-content: flex-start; }
+}
+.accountNav button { background: transparent; color: inherit; border: 1px solid currentColor; padding: 10px 14px; font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.accountNav button:disabled { opacity: .5; cursor: wait; }
+.notice { padding: 18px; margin: 16px 0; border: 2px solid currentColor; background: #efffb7; color: #111; overflow-wrap: anywhere; line-height: 1.5; }
+.notice button { font: inherit; padding: 10px 14px; cursor: pointer; }
+.manageCard { padding: 24px 0; border-bottom: 2px solid #111; }
+.manageCard h3 { font-size: 2rem; line-height: 1.1; overflow-wrap: anywhere; }

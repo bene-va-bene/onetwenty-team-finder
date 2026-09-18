@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import styles from "./page.module.css";
 import PhotoPicker from "./PhotoPicker";
+import { browserSupabase } from "@/lib/supabase";
+import { dateLabel, message, rpc, type Listing, type ListingInput } from "@/lib/listings";
 
 const ridingVibes = [
   "Just for the views",
@@ -14,20 +16,33 @@ const ridingVibes = [
 
 type CreateListingFormProps = {
   onClose: () => void;
+  onSaved: () => void;
+  email: string;
+  initial?: Listing;
 };
 
 export default function CreateListingForm({
   onClose,
+  onSaved,
+  email,
+  initial,
 }: CreateListingFormProps) {
-  const [listingType, setListingType] = useState<"rider" | "team">("rider");
-  const [riderGender, setRiderGender] = useState("");
-  const [teamCategory, setTeamCategory] = useState("Mixed");
-  const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
-  const [mixedSeeking, setMixedSeeking] = useState("Anyone");
+  const [listingType, setListingType] = useState<"rider" | "team">(initial?.type ?? "rider");
+  const [riderGender, setRiderGender] = useState(initial?.riderGender ?? "");
+  const [teamCategory, setTeamCategory] = useState(initial?.type === "team" ? initial.categories[0] : "Mixed");
+  const [preferredCategories, setPreferredCategories] = useState<string[]>(initial?.type === "rider" ? initial.categories : []);
+  const [mixedSeeking, setMixedSeeking] = useState(initial?.seeking ?? "Anyone");
   const seeking = teamCategory === "Mixed" ? mixedSeeking : teamCategory;
   const availableCategories = riderGender === "Woman" ? ["Women", "Mixed"] : riderGender === "Man" ? ["Men", "Mixed"] : [];
-  const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
+  const [selectedVibes, setSelectedVibes] = useState<string[]>(initial?.vibes ?? []);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [photoChanged, setPhotoChanged] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(Boolean(initial?.image_path));
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const savedRecord = useRef<Listing | undefined>(initial);
+  const newId = useRef<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [preview, setPreview] = useState<Record<string, string> | null>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -35,6 +50,52 @@ export default function CreateListingForm({
   const previewButtonRef = useRef<HTMLButtonElement>(null);
   const editScrollPosition = useRef(0);
   const wasPreview = useRef(false);
+
+  useEffect(() => {
+    if (!initial?.image_path) return;
+    let cancelled = false;
+    browserSupabase().storage.from("listing-photos").download(initial.image_path).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data) { setPhotoLoadFailed(true); setSaveError("Your saved photo could not be loaded. Close the form and try again."); }
+      else setImagePreview(URL.createObjectURL(data));
+      setPhotoLoading(false);
+    }).catch(() => { if (!cancelled) { setPhotoLoading(false); setPhotoLoadFailed(true); setSaveError("Your photo could not be loaded. Please reopen this form."); } });
+    return () => { cancelled = true; };
+  }, [initial]);
+
+  async function publish() {
+    if (!preview || saving || photoLoadFailed) return;
+    setSaving(true); setSaveError("");
+    try {
+      const input: ListingInput = {
+        type: listingType, name: preview.displayName, region: preview.region,
+        description: preview.description, languages: preview.languages,
+        age: listingType === "rider" && preview.age ? Number(preview.age) : null,
+        ridersNeeded: listingType === "team" ? Number(preview.ridersNeeded) : null,
+        riderGender: listingType === "rider" ? riderGender : null,
+        seeking: listingType === "team" ? seeking : null,
+        categories: listingType === "rider" ? preferredCategories : [teamCategory],
+        vibes: selectedVibes, strava: preview.strava, instagram: preview.instagram,
+      };
+      const id = savedRecord.current?.id ?? (newId.current ??= crypto.randomUUID());
+      const oldPath = savedRecord.current?.image_path ?? null;
+      let path = photoChanged ? null : oldPath;
+      if (imagePreview && photoChanged) {
+        if (!savedRecord.current) savedRecord.current = await rpc<Listing>("save_listing", { p_id: id, p_data: input, p_revision: 0, p_publish: false, p_consent: false, p_photo_consent: false });
+        const { data: { session } } = await browserSupabase().auth.getSession();
+        if (!session) throw new Error("Please sign in again.");
+        const blob = await (await fetch(imagePreview)).blob();
+        const response = await fetch(`/api/photos?id=${id}`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "image/jpeg" }, body: blob });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Photo upload failed.");
+        path = result.path;
+      }
+      await rpc<Listing>("save_listing", { p_id: id, p_data: { ...input, image_path: path }, p_revision: savedRecord.current?.revision ?? 0, p_publish: true, p_consent: true, p_photo_consent: Boolean(imagePreview) });
+      // Old photos are no longer publicly readable once the database points at the new one.
+      if (oldPath && oldPath !== path) await browserSupabase().storage.from("listing-photos").remove([oldPath]);
+      onSaved();
+    } catch (error) { setSaveError(message(error)); } finally { setSaving(false); }
+  }
 
   useEffect(() => {
     if (preview) {
@@ -66,7 +127,7 @@ export default function CreateListingForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (photoBusy || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))) {
+    if (photoBusy || photoLoading || photoLoadFailed || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))) {
       return;
     }
 
@@ -86,8 +147,9 @@ export default function CreateListingForm({
     for (const field of ["strava", "instagram"]) {
       const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement;
       input.setCustomValidity("");
-      if (publicFields[field] && !/^https?:\/\//i.test(publicFields[field])) {
-        input.setCustomValidity("Please enter a link starting with https://");
+      const allowed = field === "strava" ? /^https:\/\/(www\.)?strava\.com\// : /^https:\/\/(www\.)?instagram\.com\//;
+      if (publicFields[field] && !allowed.test(publicFields[field])) {
+        input.setCustomValidity(`Please enter an https:// link to ${field}.com.`);
         input.reportValidity();
         return;
       }
@@ -101,6 +163,7 @@ export default function CreateListingForm({
       <section
         className={styles.formPanel}
         role="dialog"
+        data-busy={saving}
         aria-modal="true"
         aria-labelledby="create-listing-title"
       >
@@ -108,7 +171,7 @@ export default function CreateListingForm({
           <div>
             <p className={styles.formEyebrow}>ONETWENTY 2027</p>
             <h2 id="create-listing-title" ref={headingRef} tabIndex={-1}>
-              {preview ? "YOUR LISTING PREVIEW" : "CREATE A LISTING"}
+              {preview ? "YOUR LISTING PREVIEW" : initial ? "EDIT YOUR LISTING" : "CREATE A LISTING"}
             </h2>
           </div>
 
@@ -116,6 +179,7 @@ export default function CreateListingForm({
             className={styles.formClose}
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Close form"
           >
             CLOSE ×
@@ -125,8 +189,7 @@ export default function CreateListingForm({
         {preview && (
           <div className={styles.listingForm}>
             <p className={styles.fieldHint}>
-              This is a demo — nothing has been published or sent. Check the
-              public details below. Your email is not part of your public profile.
+              Check the public details below before publishing. Your email is not part of your public profile.
             </p>
             <article style={{ overflowWrap: "anywhere" }}>
               {imagePreview && (
@@ -176,10 +239,12 @@ export default function CreateListingForm({
               </dl>
             </article>
             <div className={styles.formSubmitArea} style={{ marginTop: 32 }}>
-              <button className={styles.formSubmit} type="button" onClick={() => setPreview(null)}>
+              {saveError && <p role="alert" className={styles.notice}>{saveError}</p>}
+              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : "PUBLISH LISTING"} <span aria-hidden="true">↗</span></button>
+              <button className={styles.profileButton} type="button" disabled={saving} onClick={() => setPreview(null)}>
                 BACK TO EDIT <span aria-hidden="true">←</span>
               </button>
-              <p>Your details stay in this open form. Closing it discards this demo draft.</p>
+              <p>{initial?.expires_at ? `Your original deletion date remains ${dateLabel(initial.expires_at)}.` : "Your listing is stored for up to ten months from its first publication."} You can close or delete it in My listings.</p>
             </div>
           </div>
         )}
@@ -274,7 +339,8 @@ export default function CreateListingForm({
               SHOW YOURSELF
             </legend>
 
-            <PhotoPicker value={imagePreview} onChange={setImagePreview} onBusyChange={setPhotoBusy} />
+            {photoLoading ? <p role="status">Loading your photo…</p> : <PhotoPicker value={imagePreview} onChange={(value) => { setPhotoChanged(true); setImagePreview(value); }} onBusyChange={setPhotoBusy} />}
+            {saveError && !preview && <p role="alert" className={styles.notice}>{saveError}</p>}
           </fieldset>
 
           <fieldset className={styles.formSection}>
@@ -289,6 +355,7 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="displayName"
+                  defaultValue={initial?.name}
                   maxLength={60}
                   placeholder={
                     listingType === "rider" ? "e.g. Mara" : "e.g. Team No Sleep"
@@ -302,6 +369,7 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="region"
+                  defaultValue={initial?.region}
                   maxLength={100}
                   placeholder="e.g. Hamburg"
                   required
@@ -313,6 +381,7 @@ export default function CreateListingForm({
                 <input
                   type="number"
                   name="age"
+                  defaultValue={initial?.age ?? ""}
                   min="16"
                   max="99"
                   inputMode="numeric"
@@ -325,6 +394,7 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="languages"
+                  defaultValue={initial?.languages}
                   maxLength={100}
                   placeholder="e.g. EN, DE"
                   required
@@ -334,7 +404,7 @@ export default function CreateListingForm({
               {listingType === "team" && (
                 <label>
                   <span>RIDERS NEEDED</span>
-                  <select name="ridersNeeded" defaultValue="1" required>
+                  <select name="ridersNeeded" defaultValue={initial?.ridersNeeded ?? 1} required>
                     <option value="1">1 rider</option>
                     <option value="2">2 riders</option>
                     <option value="3">3 riders</option>
@@ -386,6 +456,7 @@ export default function CreateListingForm({
               <span>DESCRIPTION</span>
               <textarea
                 name="description"
+                defaultValue={initial?.description}
                 rows={6}
                 maxLength={700}
                 placeholder="What should a potential team or rider know about you?"
@@ -399,6 +470,8 @@ export default function CreateListingForm({
                 <input
                   type="url"
                   name="strava"
+                  defaultValue={initial?.strava}
+                  maxLength={500}
                   onInput={(event) => event.currentTarget.setCustomValidity("")}
                   placeholder="https://strava.com/athletes/..."
                 />
@@ -409,6 +482,8 @@ export default function CreateListingForm({
                 <input
                   type="url"
                   name="instagram"
+                  defaultValue={initial?.instagram}
+                  maxLength={500}
                   onInput={(event) => event.currentTarget.setCustomValidity("")}
                   placeholder="https://instagram.com/..."
                 />
@@ -419,6 +494,8 @@ export default function CreateListingForm({
                 <input
                   type="email"
                   name="email"
+                  value={email}
+                  readOnly
                   autoComplete="email"
                   maxLength={254}
                   placeholder="you@example.com"
@@ -457,15 +534,15 @@ export default function CreateListingForm({
 
           <div className={styles.formSubmitArea}>
             <p>
-  Your email stays private. This demo only previews your listing;
-  nothing is published or sent. Finish or cancel your photo crop to continue.
+  Your email stays private. Nothing goes public until you confirm the preview.
+  Finish or cancel your photo crop to continue.
 </p>
 
             <button
               ref={previewButtonRef}
               className={styles.formSubmit}
               type="submit"
-              disabled={photoBusy || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))}
+              disabled={photoBusy || photoLoading || photoLoadFailed || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))}
             >
               PREVIEW LISTING
               <span aria-hidden="true">→</span>

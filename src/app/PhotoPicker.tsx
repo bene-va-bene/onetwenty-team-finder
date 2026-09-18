@@ -147,7 +147,7 @@ export default function PhotoPicker({ value, onChange, onBusyChange }: Props) {
               chooseRef.current?.focus();
             }}>REMOVE PHOTO</button>}
           </div>
-          <small>Up to 40 MB. Nothing is uploaded in this demo.</small>
+          <small>Up to 40 MB. Your cropped photo is uploaded when you publish.</small>
           {loading && <p role="status">Opening photo…</p>}
         </div>
       </div>

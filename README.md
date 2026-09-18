@@ -1,272 +1,258 @@
 # RAD RACE ONETWENTY 2027 — Team Finder
 
+Updated 17 September 2026. Read this before continuing or reconstructing the project.
+Verify repository and live services before writes. This document is not proof of deployment.
+
 ## Current state
 
-Updated 17 September 2026. This is a local frontend prototype, not a production service.
-Next.js 16.3.5, React 19, TypeScript, App Router, npm and CSS Modules.
-No new dependencies are required for the frontend package described here.
+The approved frontend now connects to the dedicated Supabase project. Implemented:
+public real listings; email-link sign-in; persistent browser sessions; create, preview,
+publish, edit, close, reopen and delete owned listings; private photo storage with
+server-side re-encoding; verified-user and ownership checks; recorded publication/photo
+consent; immutable ten-calendar-month expiry; optimistic revisions for concurrent edits.
 
-Working features:
-- Public board with four fictional demo listings and event photos, not real user identities.
-- Listing-type, Riding Vibe and gender filters; reset; empty state.
-- No team-category filter. Categories remain information on listings and in forms.
-- Profile dialog; Escape; focus containment and restoration; background scroll lock.
-- Rider/team form; multiple Riding Vibes; conditional age and photo consent.
-- Public preview excludes email. Back to edit preserves form inputs.
-- Square photo crop using pointer drag (mouse/touch) and keyboard-accessible position/zoom sliders.
-- Replace/remove photo; cancel replacement retains the previously applied photo.
-- JPEG output up to 1200 × 1200 pixels, without upscaling; 40 MB input and 80 MP decoded limits.
-- Photo errors; loading state; selecting the same photo again works.
-- Contact demo with email/message validation, no transmission; return to edit preserves text.
-- Official RAD RACE site favicon, packaged as ICO.
+The board no longer contains fictional riders. Contact is explicitly a DEMO and sends no mail.
+No GitHub remote or Vercel deployment has been verified in this handoff.
 
-Not implemented: authentication, persistent listings, actual upload, email delivery,
-admin moderation, automatic reminders/deletion, legal pages, production deployment.
-HEIC/HEIF works only where the browser can decode it. Unsupported decoding gives a
-clear error; universal HEIC conversion remains a backend task. Canvas output is a
-fresh JPEG and does not copy source EXIF; this is not a substitute for mandatory
-server-side validation, orientation verification and metadata removal before publication.
-Original images stay in memory only and are not uploaded. No analytics or localStorage.
+**Before public launch, still required:** custom SMTP; real contact relay; two-month reminders;
+automatic PERMANENT deletion at ten months; abandoned-draft/orphan-image cleanup; account
+deletion; admin/reporting; privacy/imprint; universal HEIC fallback; real iOS/Android tests.
+Expired listings are hidden and cannot reopen, but that is NOT the permanent-deletion worker.
+Deleting a listing removes its photos and consent rows; its sign-in account remains.
 
-## Location and workflow
+## Local project and install
+
+Bene works in VS Code on his Mac. Deliver coherent replacement packages, not repeated small
+manual patches. Do not assume assistant scratch changes are installed in his repository.
 
 Local project:
+`/Users/benedikteiche/Library/CloudStorage/GoogleDrive-bene@rad-race.com/Meine Ablage/Events/Onetwenty/2027/team-finder`
 
-```text
-/Users/benedikteiche/Library/CloudStorage/GoogleDrive-bene@rad-race.com/Meine Ablage/Events/Onetwenty/2027/team-finder
-```
+Save all editor buffers and stop npm run dev with Ctrl+C. Extract team-finder-backend.zip
+into Downloads. Run from the EXISTING project terminal:
 
-Develop collaboratively with Bene in VS Code on his Mac. He installs complete replacement
-files. Do not assume a remote assistant workspace is connected to his repository.
-Prefer complete coherent feature packages over repeated tiny manual edits.
-Preserve uncommitted and unsaved work. A clean git status does not include unsaved editor buffers.
-GitHub remote and Vercel/Supabase connections must be checked, not assumed.
-
-```bash
-npm ci
-npm run dev
+~~~bash
+node ~/Downloads/team-finder-backend/install.mjs
+npm install --save-exact @supabase/supabase-js@2.116.0 sharp@0.35.4
 npm run lint
 npm run build
-```
+npm run dev
+~~~
 
-Use the project's committed package-lock.json. Never copy node_modules or a package.json
-from a separate test workspace over this project. Stop the local dev server before the
-production build in this workflow; restart afterward.
+The installer validates the project name, backs up affected files under
+~/Documents/TeamFinderBackups/, copies only the explicit file list, and creates .env.local
+only if absent. Conflicting Supabase config stops it before changes. It preserves
+package.json, package-lock.json, layout.tsx, globals.css and the RAD RACE favicon.
+The npm command adds two pinned dependencies and updates the existing lockfile.
+Do not replace the entire src/app folder or copy node_modules. Use npm ci after cloning.
+Keep .env.local ignored. Review git diff and commit after local checks; never force-push.
 
-## Frontend package installation
+## Supabase and email configuration
 
-Copy the individual files from this package into the existing project; do not replace
-the entire project or src/app folder. Save open editor buffers first.
+| Setting | Value |
+| --- | --- |
+| Organization | RAD RACE — qzpfpoodrrrzuliserpu |
+| Project | onetwenty-2027-team-finder |
+| Project ref | aqzxhfiaezmwkaqtktvi |
+| Region | Frankfurt, eu-central-1 |
+| API | https://aqzxhfiaezmwkaqtktvi.supabase.co |
+| Dashboard | https://supabase.com/dashboard/project/aqzxhfiaezmwkaqtktvi |
+| Added project cost quoted when created | 0 monthly; recheck before new paid resources |
 
-| Package file | Destination | Action |
-| --- | --- | --- |
-| src/app/page.tsx | src/app/page.tsx | Replace |
-| src/app/page.module.css | src/app/page.module.css | Replace |
-| src/app/CreateListingForm.tsx | src/app/CreateListingForm.tsx | Replace |
-| src/app/PhotoPicker.tsx | src/app/PhotoPicker.tsx | Add |
-| src/app/favicon.ico | src/app/favicon.ico | Replace Next.js starter icon |
-| README.md | README.md at project root | Replace |
+supabase.env.example contains only the URL and publishable key. The installer creates
+.env.local at project ROOT, not in src. No service-role/secret key is required by this package.
+Never put a secret key in a NEXT_PUBLIC_ variable.
 
-No extra package installation is needed. The existing layout and globals are preserved.
-Next.js App Router automatically discovers src/app/favicon.ico. Restart the dev server
-and hard-reload the browser if its old icon remains cached. Do not add another icon link.
-The default page title in layout.tsx still needs checking before release (layout not supplied).
+In Authentication → URL Configuration, configure the local test:
+- Site URL: http://localhost:3000
+- Redirect URLs: add http://localhost:3000
+- Keep the standard email-link template using {{ .ConfirmationURL }}.
+- Test with the email address belonging to your Supabase organization membership.
 
-## Product decisions
+Auth dashboard configuration has NOT been inspected or changed by this package.
+The default mailer only sends to organization members; currently two test messages/hour.
+Configure custom SMTP before public use. Do not disable email verification as a workaround.
+Set final HTTPS domain and redirects before deployment. A phone's localhost is the phone,
+not your Mac; use a reachable configured origin for device testing.
 
-Mobile-first public noticeboard, English interface. It replaces the old public Sheet;
-do not import old personal data without new consent. The service is a finder, not race registration.
-Preserve the approved bold, high-contrast RAD RACE look: black, white, yellow-green,
-large typography, clear touch controls. Search choices use chips like Riding Vibes,
-not dropdowns. Avoid extra filter layers. Region/language filters were discussed but
-are not currently implemented or required in the simplified board.
+Auth uses supabase-js's browser-only implicit flow: the standard link returns the session
+in a URL fragment, the SDK processes it and persists the session in browser storage.
+No SSR auth or cookie proxy is needed. Photo POST uses an Authorization bearer token,
+validated server-side with getUser; DB and Storage independently enforce ownership.
+Server clients are fresh per request. Public reads use only the publishable key.
+Sign-out revokes refresh sessions; already-issued access tokens can last until expiry.
 
-Two listing types:
-- Rider seeks a team. “I NEED A TEAM” in search therefore shows team listings.
-- Team seeks riders. “WE NEED RIDERS” in search therefore shows rider listings.
+Sources: [email links](https://supabase.com/docs/guides/auth/auth-email-passwordless),
+[SMTP](https://supabase.com/docs/guides/auth/auth-smtp),
+[RLS](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
-Public fields: optional photo, display name, city/region, languages, description,
-Riding Vibes, category preferences/team category, rider race-classification gender or
-team's sought gender, optional social links, eventual publication date.
-Optional age is for individual riders only. Team forms/previews must never show age.
-Riders needed is team-only. Email, messages, ownership/auth IDs, consent and moderation
-data must never enter public responses or public previews.
+## Product rules — preserve these
 
-Five Riding Vibes, multiple selections in a listing:
-1. Just for the views
-2. Good times, good pace
-3. Sporty but social
-4. Let’s shred
-5. Race to win
+- English, mobile-first, bold uppercase RAD RACE typography, black/off-white/neon yellow.
+- Browse without sign-in. Publish display name, region, type, description, languages,
+  optional photo/age/social links, publication date. Never email, auth ID or consent data.
+- Age is optional for RIDERS only, never teams. Current input 16–99; confirm event/minor
+  policy before launch. No claim that this input alone establishes eligibility.
+- Five Riding Vibes: Just for the views; Good times, good pace; Sporty but social;
+  Let’s shred; Race to win. Multiple selection in form; overlap matching in search.
+- I NEED A TEAM shows teams; WE NEED RIDERS shows riders.
+- Vibe and gender search use chips; NO team-category search filter.
+- Categories/classification stay in form/profile: Woman → Women/Mixed; Man → Men/Mixed.
+  Teams select Men/Women/Mixed. Mixed may seek Women/Men/Anyone. Verify final 2027 rules.
+- Sign in before creating; no repeat email confirmation for already verified sessions.
+- Close removes from public immediately, allows reopening before original expiry.
+- Ten CALENDAR months from first publication, unchanged by edits/reopen. No automatic
+  closure for inactivity or event date. Every two months remind active owners; no response
+  leaves the listing active. Reminder and permanent-deletion workers are still pending.
+- Contact ultimately relays verified messages without publishing recipient email.
+  Reply-address disclosure behavior must be explicit when implementing the relay.
+- No unsolicited old-sheet imports, paid analytics, chat platform, CMS or new paid services.
 
-Current board selects one vibe at a time. A listing matches when that vibe is included.
-Rider category preferences: Woman → Women and/or Mixed; Man → Men and/or Mixed.
-Team category: Men / Women / Mixed. Mixed teams may seek Women / Men / Anyone;
-Men and Women teams use their corresponding sought gender. Gender filtering includes
-teams seeking Anyone. No automatic roster or eligibility certification.
-Current gender options reflect the supplied competition categories; do not invent
-rules for cases not covered by the event rules. Organizer review remains a release task.
+## Files
 
-## Event rules and unresolved decisions
+| File | Responsibility |
+| --- | --- |
+| src/app/page.tsx | Real board, filters, profiles/contact demo, account entry points, focus/scroll lock |
+| src/app/CreateListingForm.tsx | Form, preview, editing, publication and upload orchestration |
+| src/app/PhotoPicker.tsx | Local square crop, drag/zoom, replace/remove, errors and URL cleanup |
+| src/app/SignIn.tsx | Email-link requests and resend feedback |
+| src/app/MyListings.tsx | Ownership management, close/reopen/delete confirmation |
+| src/app/page.module.css | Existing design plus account/management styles |
+| src/app/api/photos/route.ts | Verified upload and active-only public photo rendering |
+| src/lib/supabase.ts | Browser singleton and per-request server client factory |
+| src/lib/listings.ts | Types, RPC helpers and photo-aware deletion |
+| public/rider-placeholder.svg | Local no-photo placeholder |
+| src/app/favicon.ico | Official RAD RACE icon from previous package, unchanged |
+| supabase/migrations/ | Applied backend schema source |
+| tests/rls.sql | Rollback-only ownership/access regression test |
+| install.mjs | Backup and explicit update installation |
 
-Reference: https://www.808project.de/one-twenty/ausschreibung (2027, changes reserved).
-Road race Mixed timing requires at least three finishers including a woman and a man;
-the relevant time can belong to a later finisher if the first three do not meet that mix.
-Do not apply this road-race timing statement automatically to the time trial.
+## Photo lifecycle
 
-The supplied older rules allow participation from 16, with guardian permission under 18.
-The optional prototype age field accepts 16–99. This is not identity verification or
-consent to a minor's public profile. Confirm the 2027 rule and the finder policy for
-minors before allowing real publication. No production eligibility policy is final yet.
+Input up to 40 MB and 80 MP decoded browser image. JPG/PNG/WebP supported; HEIC/HEIF only
+when the browser decodes them. Do not claim universal HEIC support yet. Canvas exports
+at most 1200 square JPEG; object URLs revoked on replace/unmount.
+Server accepts at most 2 MiB cropped data, checks auth, decodes with a 40 MP limit, rotates,
+resizes to at most 1200 square and re-encodes JPEG quality 85. No original, EXIF/GPS or
+face analysis. Public rendering re-decodes stored data to prevent serving arbitrary payloads.
 
-## Photo implementation
+Private bucket listing-photos, keys <listing UUID>/<random UUID>.jpg.
+Ownership must exist before upload, so photo creation first reserves an unpublished draft.
+Failed upload/save can leave a draft/private unused photo. It is not public and can be
+removed through permanent deletion. Successful replacement removes the previous photo;
+failed cleanup can leave a private old object. Add scheduled cleanup retries and quotas
+before release. Storage MIME/size and ownership policies also apply to direct SDK calls.
+Public GET /api/photos checks active, unexpired status on every request and sets no-store.
+Owners edit via private blob downloads, including for closed listings.
 
-PhotoPicker.tsx receives value, onChange and onBusyChange from CreateListingForm.
-It keeps a browser-decoded source, crop parameters and object URLs in memory.
-Crop side = min(source width, source height) / zoom. X/Y position selects the origin
-within available source bounds. The visible crop and canvas output use the same math.
-Pointer drag and sliders constrain position; ranges also provide keyboard control.
-“Use this photo” exports a fresh JPEG, fills transparent areas white and applies it.
-“Cancel crop” retains the previous applied image. Remove clears image and consent.
-Applying a different crop/photo resets image consent. Preview is blocked while loading,
-cropping or encoding. Object URLs are revoked when replaced or unmounted; stale async
-results must not revive removed/closed photos. Do not regress these lifecycle safeguards.
+## Database model
 
-HEIC production handling must support iOS/Android without asking users to convert files
-manually. Live Photos should use the still frame. Real-device orientation and format
-tests remain required. Browser-emulated mobile tests do not establish iOS/Android support.
+Applied to the dedicated project, in order:
+1. 20260917215026_team_finder_core.sql
+2. 20260917215837_consent_policy.sql
 
-## Future authentication and contact
+Do not manually rerun applied migrations on the live project. They reconstruct an EMPTY
+project in order. Create future filenames via supabase migration new, not hand-written dates.
 
-Browse without login. Use passwordless email sign-in for publishing/managing/contacting.
-Never call it “Magic Link” or “OTP” in user-facing text; explain the email link plainly.
-An already authenticated user sends directly without a new link for each message.
-An unauthenticated sender writes first, confirms email once and then the pending message
-is forwarded automatically. Keep that pending message server-side with a short expiry,
-idempotent delivery and explicit linkage to the verified sender. An active session allows
-further messages subject to rate limits. Recipient email must never be exposed by the API.
-Decide and disclose how the sender's reply address is shared with the recipient before
-real delivery; do not promise full anonymity if reply-to reveals the sender's address.
+private.listings holds ownership and validated fields; email stays in auth.users.
+private.consents stores exact consent text/version/time/photo consent and cascades on deletion.
+Both tables have RLS and no direct anon/authenticated table grants. Keep private outside
+Data API exposed schemas. Public wrappers are SECURITY INVOKER. Narrow private
+SECURITY DEFINER implementations use empty fixed search_path, explicit auth and ownership
+checks, and revoked PUBLIC execution. Public read deliberately allows anonymous callers
+but returns only active/unexpired rows without owner_id. No authorization from user_metadata.
 
-Contact draft is preserved within an open profile; closing/reopening clears it.
-The present “TRY CONTACT FLOW” is a demo, not email verification or delivery.
+Up to three stored listings/account, including closed and draft, limits accidental/spam growth.
+A current revision is required for mutations. Conflicts fail rather than overwrite.
+All dates are server-derived. Ten months means UTC calendar months, not 300 days.
+Deletion closes first, removes photo objects, then deletes the record. Failure leaves a
+closed listing for retry. Publication/photo consent is required and recorded on every publish.
 
-## Retention rules — final product decision
+## Verification and combined local test
 
-- Owners may edit, close, reactivate or permanently delete listings.
-- Closing immediately removes a listing from public browsing.
-- Reminder every two calendar months while still active; no response does not close it.
-- Permanently delete ten calendar months after FIRST publication, with no extension.
-- Reopening/editing must not restart that clock; new need requires a new listing.
-- No separate automatic end-of-event closure.
-- Delete the listing, image and associated personal/contact/message data no longer needed.
-- Shared account data must be assessed against other active listings before deletion.
-- Finalize auth-account cleanup, backup retention and minimal legal/audit retention.
-- Reminders show first publication and planned deletion date and offer edit/close actions.
-- Scheduled jobs must be retry-safe, authenticated and avoid duplicate mail/deletion races.
+Passed in the assistant test workspace:
+- ESLint and production build: Next.js 16.3.5 / React 19.2.8.
+- Live public RPC with publishable key; anonymous My listings denied.
+- Two rollback-only synthetic auth users: cross-owner update/save/delete denied, direct private
+  reads denied, field validation and revision conflicts enforced, close hides, reopen preserves
+  expiry, expired cannot reopen, delete removes own record.
+- Supabase security advisor: no findings after migrations.
 
-## Planned backend and costs
+No test users/listings retained; no email sent. Interactive browser, real email/session and
+real-device tests have NOT been claimed as passed.
 
-Next.js on existing RAD RACE Vercel team if appropriate; Supabase Postgres/Auth/Storage
-in an EU region; transactional email provider still undecided. Verify current plans,
-pricing, commercial-use terms and limits before provisioning. Never assume free tiers
-are suitable. No paid plan upgrade without agreement. No real-time chat, maps, AI or CMS.
-
-Suggested model, to finalize after current docs/security review:
-- profiles: private ownership/account details; minimize duplicate auth email storage.
-- listings: public fields, owner, kind, draft/active/closed/hidden status, first published,
-  immutable deletion deadline, image reference, category/gender fields, timestamps.
-- listing_riding_vibes (or constrained array): the five fixed choices.
-- consents: exact versioned text/scope, listing/user, timestamps/withdrawal.
-- contact_requests: private sender/recipient, message, verification/delivery state.
-- moderation_actions/reports: restricted admin records.
-- reminder/delivery bookkeeping: idempotency and last successful work.
-
-RLS on every exposed table; public access limited to public fields of active listings.
-Use column-safe public projections; RLS alone does not hide private columns.
-Owner-scoped mutations; protected admin claims/table (never editable user metadata).
-Secret/service keys server-only. Private original uploads; validated sanitized final
-images only. Consents/messages inaccessible to public users. Test anonymous, owner,
-other user and admin access, plus auth/session invalidation and storage deletion.
-Never use a security-definer function merely to work around denied access.
-
-Admin scope: list/search/filter, hide/close/delete, remove images, inspect reports,
-simple totals and protected CSV export. Resolve legal operator, imprint, privacy,
-provider agreements, retention/minors rules before production release.
+Local test:
+1. Empty real board, responsive UI, correct favicon.
+2. Sign in using Supabase member email; open link, reload, My listings stays available.
+3. Create rider listing with several vibes and cropped photo; preview then publish.
+4. Reload: listing/photo persist; no email on public profile.
+5. My listings → Edit: fields/photo preserved; change and publish.
+6. Close hides listing/photo; reopen preserves original deletion date.
+7. Create team: no age; vacancies and sought gender work.
+8. Permanently delete with confirmation; listing and photos gone. Sign out.
+9. Contact stays explicitly a demo. Commit changes and lockfile after checks.
 
 ## Next packages
 
-1. Finish local acceptance test below and commit this package; verify GitHub backup.
-2. Check services/costs, connect private repository and create secure Supabase foundation.
-3. Real listing lifecycle, photo storage/conversion/cleanup and public queries.
-4. Verified email contact, abuse controls and admin moderation.
-5. Reminder/deletion jobs, legal pages, Vercel/domain, real iOS/Android release tests.
+1. Production SMTP and actual private contact relay, rate limits, abuse handling,
+   idempotent send and explicit reply-address behavior.
+2. Daily idempotent two-month reminders and ten-month permanent deletion, all related
+   photos/messages, account retention, retry/orphan cleanup. Mandatory before release.
+3. HEIC fallback and physical iPhone Safari/Android Chrome tests.
+4. Admin, reporting, legal pages, account deletion, Vercel/domain and release checks.
 
-## One combined acceptance test
+## Reconstruction / continuation prompt
 
-1. Open desktop and ~390 px mobile layout. No inert Menu button or sideways overflow.
-2. Filter teams/riders, gender and vibe; clear filters. No team-category filter.
-3. Open a profile: Tab/Shift+Tab stay inside; Escape returns focus and scroll position.
-4. Contact demo: enter email/message, continue, go back; no message is sent.
-5. Create a rider listing: required basics, gender/category and multiple vibes.
-6. Select landscape/portrait photo; drag, zoom, adjust sliders; apply crop.
-7. Replace it, cancel: old applied photo remains. Replace/apply: photo consent resets.
-8. Remove: preview and photo consent disappear. Select same file again: works.
-9. Unsupported/corrupt/oversized input: readable error, existing photo stays intact.
-10. Preview, back: fields, selections and applied crop preserved; no public email.
-11. Switch to team: no age; rider count and sought gender present.
-12. Favicon is RAD RACE. Run lint and production build once, then commit the package.
+Copy this together with the current README and source files into a new coding conversation:
 
-## Rebuild / continuation prompt
-
-Copy the following into a new coding conversation together with this README and the
-source files (or grant access to the repository). A prompt describes behavior but cannot
-recover secrets, deleted user data or original files; retain Git history and provider backups.
-
-> Rebuild or continue RAD RACE ONETWENTY 2027 Team Finder using this entire README as
-> the product specification. First inspect current source, Git status, dependency lockfile
-> and connected services. Preserve unsaved/uncommitted work. Live code/config override
-> stale implementation status; explicit user product decisions override old code.
-> We collaborate in Bene's VS Code on his Mac. Deliver coherent sets of complete files,
-> one combined test and one commit per feature package. Do not force-push or overwrite
-> unrelated work. Keep this README current, including this reconstruction prompt.
+> Continue RAD RACE ONETWENTY 2027 Team Finder with Bene. Read README.md, package.json,
+> app files and migrations first; verify live state before writes. Use only project
+> aqzxhfiaezmwkaqtktvi in RAD RACE, Frankfurt; never change the TdF portal.
+> Bene installs complete packages in his existing Mac VS Code project. Preserve approved
+> CI, backup changed files, provide one combined test and update this README/prompt.
+> Assistant scratch edits are not proof of installation/deployment.
 >
-> Use Next.js App Router, TypeScript, React and CSS Modules. Preserve the approved
-> RAD RACE visual direction from https://www.rad-race.com/onetwenty-2026. Mobile-first,
-> English, bold high contrast, touch-friendly chips, no unnecessary filter layers.
-> Public browsing is anonymous. Two kinds of listing: rider seeks team and team seeks
-> riders. Search “I need a team” shows teams and “We need riders” shows riders.
-> Filters are kind, vibe and gender, NOT team category. Use the five exact Riding Vibes
-> in this README with multiple selections in the form. Categories and sought gender
-> remain public listing information. Age is optional for riders only, never teams.
+> Rebuild the English mobile-first board in RAD RACE black/off-white/neon yellow, bold
+> uppercase headings, event imagery and official favicon. Browse without login. Public
+> fields: display name, region, rider/team, description, languages, optional photo,
+> optional rider-only age, optional Strava/Instagram, publication date. No public email
+> or auth IDs. Keep gender/category compatibility in form/profile, not category search.
+> I NEED A TEAM shows teams; WE NEED RIDERS shows riders. Vibe/gender filters are chips.
+> Five multi-select vibes: Just for the views; Good times, good pace; Sporty but social;
+> Let’s shred; Race to win. Search matches overlap.
 >
-> Build profile, create/edit/public preview and contact flows. Preserve draft inputs on
-> back-navigation, trap/restore dialog focus, support Escape and lock background scroll.
-> Photos are optional: camera/library, square touch crop, zoom and position sliders,
-> replace/remove, retry errors; final output at most 1200 square. Support HEIC/HEIF in
-> production through verified conversion, correct orientation and server-side metadata
-> stripping. Never publish originals. Match preview crop to output and free object URLs.
+> Email-link sign-in uses plain wording and persistent verified sessions; no repeated
+> confirmation while signed in. Current auth is browser-only Supabase implicit flow;
+> stateless server clients, verified bearer for photo upload. Reconstruct backend by
+> applying committed migrations to an empty project in order, configure public env and
+> redirects, install pinned packages. Inspect history instead of rerunning live migrations.
+> Keep private tables, RLS, explicit owner/verified-user checks and exact recorded consent.
+> Never expose service-role keys, trust user_metadata, or mix demo people into live results.
+> Preserve optimistic revision conflicts and server-derived immutable publication/expiry.
 >
-> Email/private messages/consents/admin information must not be public. Use EU Supabase
-> with tested RLS and server-only secrets. Email-link sign-in is explained in plain words.
-> Verify an unauthenticated sender once, then send their pending message exactly once;
-> authenticated users don't reconfirm per message. Add rate limits and abuse handling.
-> Provide simple moderation, not a full CMS. No analytics, maps or realtime messaging.
+> Keep square photo drag/zoom, replace/remove, readable failures, metadata stripping,
+> at-most-1200px JPEG, private original-free storage and active-only no-store photo endpoint.
+> Preserve form values on preview/back, Escape/focus trap/return focus and scroll lock.
+> HEIC currently depends on browser decoding; implement/test fallback before claiming support.
 >
-> Owners can close/reopen/delete. Remind active listings every two months without
-> deactivating for nonresponse. Permanently delete after ten months from first publication,
-> without extending on edit/reopen; remove associated images and obsolete private data.
-> Implement retry-safe jobs. Confirm minors policy, legal operator/privacy and provider
-> agreements before release. Verify current hosting/email costs; prefer existing plans.
-> Use Vercel as requested, not a different hosting product. Clearly distinguish demos
-> from working backend behavior. Follow the next packages and validate with the combined
-> acceptance test; never claim real-device or backend verification from a UI mockup.
+> Users publish/edit/close/reopen/delete. Close hides immediately. Expiry is ten calendar
+> months after FIRST publication, never extended by edits/reopen. Every two months remind
+> active owners; no inactivity/event-date closure. Finish permanent deletion of listings,
+> photos and messages via daily idempotent worker before launch: expiry hiding is not enough.
+> Finish production SMTP/contact relay, abuse limits, cleanup, legal/admin/account deletion
+> and real-device tests. Contact is currently a labelled demo; do not claim mail is sent.
+> Avoid unnecessary paid services, analytics, chat/CMS, and old-sheet imports. Verify costs.
+>
+> Run security advisor, ownership rollback tests, lint/build and one combined acceptance test.
+> Report exact tested scope and remaining configuration. This prompt cannot restore secrets,
+> deleted user data, lost assets or database backups. Retain Git history and provider backups.
 
-## Asset provenance
+## Assets
 
-Favicon: original light-mode icon linked by https://www.rad-race.com on 17 September 2026.
-Source: https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/22baa902-e7c5-4e34-8de3-a81c2cde6f41/favicon.ico
-The CDN supplied a raster image; it was container-converted to a genuine multi-size ICO
-without redrawing the mark. Demo photos are referenced from the event's Squarespace CDN.
-They illustrate fictional listings; they do not identify the named demo riders. Replace
-demo data/images before release. Confirm authorized production use of all event assets.
+Design reference: https://www.rad-race.com/onetwenty-2026
+
+Official favicon source, converted to real multi-size ICO in previous package:
+https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/22baa902-e7c5-4e34-8de3-a81c2cde6f41/favicon.ico
+
+The hero remains an event asset. The new SVG is a text fallback, not an invented logo.
+Verify final 2027 branding and image rights before public launch.

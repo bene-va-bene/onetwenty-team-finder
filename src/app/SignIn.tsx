@@ -1,0 +1,33 @@
+"use client";
+import { useState } from "react";
+import { browserSupabase, isConfigured } from "@/lib/supabase";
+import { message } from "@/lib/listings";
+import styles from "./page.module.css";
+
+export default function SignIn({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const [retryAt, setRetryAt] = useState(0);
+  return <div className={styles.formBackdrop}><section className={styles.formPanel} role="dialog" aria-modal="true" aria-labelledby="signin-title">
+    <header className={styles.formHeader}><div><p className={styles.formEyebrow}>NO PASSWORD NEEDED</p><h2 id="signin-title">YOUR EMAIL. YOUR LISTINGS.</h2></div><button type="button" className={styles.formClose} onClick={onClose}>CLOSE ×</button></header>
+    <form className={styles.listingForm} onSubmit={async (event) => {
+      event.preventDefault(); if (busy) return;
+      if (Date.now() < retryAt) { setError("Please wait one minute before requesting another email."); return; }
+      setBusy(true); setError("");
+      try {
+        const { error } = await browserSupabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin, shouldCreateUser: true } });
+        if (error) throw error;
+        setSent(true); setRetryAt(Date.now() + 60_000);
+      } catch (error) { setError(message(error)); } finally { setBusy(false); }
+    }}>
+      <p className={styles.fieldHint}>We’ll email you a sign-in link. Open it to create or manage your listings. Your email address stays private.</p>
+      <div className={styles.fieldGrid}><label className={styles.fullField}><span>EMAIL ADDRESS</span><input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => { setEmail(event.target.value); setSent(false); }} /></label></div>
+      {sent && <p className={styles.notice} role="status">Check your inbox, including spam. Open the sign-in link, then return to Create a listing or My listings.</p>}
+      {!isConfigured && <p className={styles.notice}>The Team Finder connection has not been configured yet.</p>}
+      {error && <p className={styles.notice} role="alert">{error}</p>}
+      <button className={styles.formSubmit} type="submit" disabled={busy || !isConfigured}>{busy ? "SENDING…" : sent ? "SEND ANOTHER LINK" : "EMAIL ME A SIGN-IN LINK"}</button>
+    </form>
+  </section></div>;
+}

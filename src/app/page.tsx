@@ -1,91 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { browserSupabase, isConfigured } from "@/lib/supabase";
+import { dateLabel, message, meta, photoUrl, rpc, vibes, type Listing } from "@/lib/listings";
+import SignIn from "./SignIn";
+import MyListings from "./MyListings";
 import styles from "./page.module.css";
 
 import CreateListingForm from "./CreateListingForm";
 
 type ListingType = "rider" | "team";
 
-type Listing = {
-  id: number;
-  type: ListingType;
-  name: string;
-  region: string;
-  meta: string;
-  description: string;
-  vibes: string[];
-  image: string;
-  categories: string[];
-  riderGender?: string;
-  seeking?: string;
-};
-
-const vibes = [
-  "Just for the views",
-  "Good times, good pace",
-  "Sporty but social",
-  "Let’s shred",
-  "Race to win",
-];
-
-const listings: Listing[] = [
-  {
-    id: 1,
-    type: "rider",
-    name: "Mara",
-    categories: ["Women", "Mixed"],
-    riderGender: "Woman",
-    region: "Hamburg",
-    meta: "Rider looking for a team",
-    description:
-      "Happy to ride hard, but the best team is still the one sharing snacks and finishing together.",
-    vibes: ["Sporty but social", "Let’s shred"],
-    image:
-      "https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/1749046735460-E4191I1QD7VISTCZOFOD/RR_120_Raceday_Bjoern-Reschabek_001-min.jpg",
-  },
-  {
-    id: 2,
-    type: "team",
-    name: "Team No Sleep",
-    categories: ["Mixed"],
-    seeking: "Women",
-    region: "Berlin",
-    meta: "Team looking for 2 riders",
-    description:
-      "Four friends, questionable jokes and a solid pace. We need two more people who enjoy the whole day.",
-    vibes: ["Good times, good pace", "Sporty but social"],
-image:
-  "https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/1749046759661-S8NTH6HMAJJEJKBPHYHY/RR_120_Raceday_Bjoern-Reschabek_135-min.jpg",  },
-  {
-    id: 3,
-    type: "rider",
-    name: "Nico",
-    categories: ["Men", "Mixed"],
-    riderGender: "Man",
-    region: "Cologne",
-    meta: "Rider looking for a team",
-    description:
-      "Climbs are my thing. I can adapt to the group, from a fast social ride to a proper race effort.",
-    vibes: ["Sporty but social", "Let’s shred", "Race to win"],
-    image:
-      "https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/1749046739646-BZ9V7EX6DABUDDZQZY6R/RR_120_Raceday_Bjoern-Reschabek_025-min.jpg",
-  },
-  {
-    id: 4,
-    type: "team",
-    name: "Gipfelstürmer",
-    categories: ["Men"],
-    seeking: "Men",
-    region: "Munich",
-    meta: "Team looking for 1 rider",
-    description:
-      "We are here for a long day outside, great views and a finish line beer. Nobody gets dropped.",
-    vibes: ["Just for the views", "Good times, good pace"],
-    image:
-      "https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/1749046752971-8EEBFXUG0OPFXE5UOG95/RR_120_Raceday_Bjoern-Reschabek_098-min.jpg",
-  },
-];
 export default function Home() {
   const [typeFilter, setTypeFilter] = useState<"all" | ListingType>("all");
   const [vibeFilter, setVibeFilter] = useState<string | null>(null);
@@ -99,12 +25,63 @@ const contactHeading = useRef<HTMLHeadingElement | null>(null);
 const messageTrigger = useRef<HTMLButtonElement | null>(null);
 const dialogTrigger = useRef<HTMLButtonElement | null>(null);
 
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [editing, setEditing] = useState<Listing | undefined>();
+  const reload = useCallback(async () => {
+    setLoading(true); setLoadError("");
+    try { setListings(await rpc<Listing[]>("list_public_listings")); }
+    catch (error) { setLoadError(message(error)); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => {
+    if (!isConfigured) {
+      queueMicrotask(() => { setLoadError("Add the supplied Supabase settings to .env.local, then restart the app."); setLoading(false); setAuthLoading(false); });
+      return;
+    }
+    queueMicrotask(() => void reload());
+    const client = browserSupabase();
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null); setAuthLoading(false);
+      if (session) setShowSignIn(false);
+      if (event === "SIGNED_OUT") { setShowManage(false); setShowCreateForm(false); setEditing(undefined); }
+    });
+    client.auth.getSession().then(async ({ data, error }) => {
+      if (error) setNotice("That sign-in link could not be used. Please request a new one.");
+      if (data.session) {
+        const verified = await client.auth.getUser();
+        setUser(verified.data.user);
+        if (verified.error) setNotice("Please sign in again.");
+      }
+      setAuthLoading(false);
+    }).catch(() => { setNotice("Sign-in could not be checked. Please try again."); setAuthLoading(false); });
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    if (params.has("error")) setTimeout(() => setNotice("The sign-in link has expired or was already used. Please request another one."), 0);
+    const onFocus = () => { void reload(); };
+    window.addEventListener("focus", onFocus);
+    return () => { subscription.unsubscribe(); window.removeEventListener("focus", onFocus); };
+  }, [reload]);
+  function openCreate(trigger: HTMLButtonElement) {
+    dialogTrigger.current = trigger; setEditing(undefined);
+    if (!user) setShowSignIn(true); else setShowCreateForm(true);
+  }
+  async function signOut() {
+    try { const { error } = await browserSupabase().auth.signOut(); if (error) throw error; setNotice("Signed out."); }
+    catch (error) { setNotice(message(error)); }
+  }
+
 useEffect(() => {
   if (contactStep !== "profile") contactHeading.current?.focus();
 }, [contactStep]);
 
 useEffect(() => {
-if (!selectedListing && !showCreateForm) {    return;
+if (!selectedListing && !showCreateForm && !showSignIn && !showManage) {    return;
   }
 
   const scrollPosition = window.scrollY;
@@ -135,9 +112,12 @@ if (!selectedListing && !showCreateForm) {    return;
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") {
+      if (dialog!.getAttribute("data-busy") === "true") return;
       event.preventDefault();
 setSelectedListing(null);
 setShowCreateForm(false);
+setShowSignIn(false);
+setShowManage(false);
       return;
     }
     if (event.key === "Tab") {
@@ -183,7 +163,7 @@ setShowCreateForm(false);
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     window.scrollTo(0, scrollPosition);
   };
-}, [selectedListing, showCreateForm]);
+}, [selectedListing, showCreateForm, showSignIn, showManage]);
 
   const visibleListings = useMemo(() => {
     return listings.filter((listing) => {
@@ -197,7 +177,7 @@ setShowCreateForm(false);
         : listing.seeking === "Anyone" || listing.seeking === genderFilter);
       return matchesType && matchesVibe && matchesGender;
     });
-  }, [typeFilter, vibeFilter, genderFilter]);
+  }, [listings, typeFilter, vibeFilter, genderFilter]);
 
   return (
     <main className={styles.page}>
@@ -207,6 +187,10 @@ setShowCreateForm(false);
         </a>
 
         <span className={styles.event}>ONETWENTY 2027</span>
+        <nav className={styles.accountNav} aria-label="Account">
+          <button type="button" disabled={authLoading || !isConfigured} onClick={(event) => { dialogTrigger.current = event.currentTarget; if (user) setShowManage(true); else setShowSignIn(true); }}>{authLoading ? "LOADING…" : user ? "MY LISTINGS" : "SIGN IN"}</button>
+          {user && <button type="button" onClick={() => void signOut()}>SIGN OUT</button>}
+        </nav>
 
       </header>
 
@@ -224,7 +208,8 @@ setShowCreateForm(false);
           <button
   className={styles.createButton}
   type="button"
-  onClick={(event) => { dialogTrigger.current = event.currentTarget; setShowCreateForm(true); }}
+  disabled={authLoading || !isConfigured}
+  onClick={(event) => openCreate(event.currentTarget)}
 >
   CREATE A LISTING
   <span aria-hidden="true">↗</span>
@@ -233,6 +218,8 @@ setShowCreateForm(false);
       </section>
 
       <section className={styles.finder}>
+        {notice && <p className={styles.notice} role="status">{notice}</p>}
+        {loadError && <div className={styles.notice} role="alert"><p>{loadError}</p><button type="button" onClick={() => void reload()}>TRY AGAIN</button></div>}
         <div className={styles.finderHeading}>
           <div>
             <p className={styles.sectionLabel}>TEAM FINDER</p>
@@ -240,7 +227,7 @@ setShowCreateForm(false);
           </div>
 
           <p className={styles.resultCount}>
-            {visibleListings.length} DEMO LISTINGS
+            {loading ? "LOADING…" : `${visibleListings.length} ACTIVE LISTINGS`}
           </p>
         </div>
 
@@ -304,7 +291,7 @@ setShowCreateForm(false);
           </div>
         </div>
 
-        {visibleListings.length > 0 ? (
+        {loading ? <p role="status">Loading listings…</p> : loadError ? null : visibleListings.length > 0 ? (
           <div className={styles.grid}>
             {visibleListings.map((listing) => (
               <article className={styles.card} key={listing.id}>
@@ -312,7 +299,7 @@ setShowCreateForm(false);
                   {/* Temporary public event image used only for the prototype. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={listing.image}
+                    src={photoUrl(listing)}
                     alt=""
                     className={styles.image}
                   />
@@ -324,7 +311,7 @@ setShowCreateForm(false);
                 </div>
 
                 <div className={styles.cardBody}>
-                  <p className={styles.cardMeta}>{listing.meta}</p>
+                  <p className={styles.cardMeta}>{meta(listing)}</p>
                   <h3>{listing.name}</h3>
                   <p className={styles.region}>{listing.region}</p>
                   <div className={styles.categoryTags}>
@@ -360,14 +347,16 @@ setShowCreateForm(false);
         ) : (
           <div className={styles.empty}>
             <p>NO MATCH YET.</p>
-            <span>Try different filters or use Clear filters.</span>
+            <span>{listings.length ? "Try different filters or use Clear filters." : "Be the first to create a listing."}</span>
           </div>
         )}
       </section>
 
       {showCreateForm && (
-  <CreateListingForm onClose={() => setShowCreateForm(false)} />
+  <CreateListingForm initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { setShowCreateForm(false); setEditing(undefined); setNotice("Your listing is now online. Manage it under My listings."); void reload(); }} />
 )}
+{showSignIn && <SignIn onClose={() => setShowSignIn(false)} />}
+{showManage && <MyListings onClose={() => setShowManage(false)} onChanged={() => void reload()} onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }} />}
 {selectedListing && (
   <div
     className={styles.modalBackdrop}
@@ -397,7 +386,7 @@ setShowCreateForm(false);
         {/* Prototype image. Later replaced by the user upload. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={selectedListing.image}
+          src={photoUrl(selectedListing)}
           alt=""
           className={styles.profileImage}
         />
@@ -410,7 +399,7 @@ setShowCreateForm(false);
       </div>
 
       <div className={styles.profileContent}>
-        <p className={styles.cardMeta}>{selectedListing.meta}</p>
+        <p className={styles.cardMeta}>{meta(selectedListing)}</p>
         <h2 id="profile-title">{selectedListing.name}</h2>
         <p className={styles.profileRegion}>{selectedListing.region}</p>
         <div className={styles.profileSection}>
@@ -440,14 +429,16 @@ setShowCreateForm(false);
         <div className={styles.profileFacts}>
           <div>
             <span>LANGUAGES</span>
-            <strong>EN · DE</strong>
+            <strong>{selectedListing.languages}</strong>
           </div>
           <div>
             <span>PUBLISHED</span>
-            <strong>17 SEP 2026</strong>
+            <strong>{dateLabel(selectedListing.published_at)}</strong>
           </div>
         </div>
 
+        {selectedListing.type === "rider" && selectedListing.age && <p className={styles.fieldHint}>Age: {selectedListing.age}</p>}
+        <div className={styles.photoActions}>{(["strava", "instagram"] as const).map((key) => selectedListing[key] && <a key={key} href={selectedListing[key]} target="_blank" rel="noopener noreferrer" className={styles.photoButton}>{key.toUpperCase()}</a>)}</div>
         <button
           ref={messageTrigger}
           className={styles.messageButton}
@@ -456,12 +447,12 @@ setShowCreateForm(false);
           style={contactStep !== "profile" ? { display: "none" } : undefined}
           onClick={() => setContactStep("compose")}
         >
-          SEND A MESSAGE
+          TRY CONTACT DEMO
           <span aria-hidden="true">→</span>
         </button>
 
         {contactStep === "profile" && <p className={styles.privacyNote}>
-          Try the contact form. This demo does not send messages.
+          Contact delivery is not connected yet. You can try the demo form below; it does not send messages.
         </p>}
 
         {contactStep !== "profile" && (
