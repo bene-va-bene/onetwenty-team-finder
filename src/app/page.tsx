@@ -6,6 +6,7 @@ import { browserSupabase, isConfigured } from "@/lib/supabase";
 import { dateLabel, message, meta, photoUrl, rpc, vibes, type Listing } from "@/lib/listings";
 import SignIn from "./SignIn";
 import MyListings from "./MyListings";
+import ContactForm from "./ContactForm";
 import styles from "./page.module.css";
 
 import CreateListingForm from "./CreateListingForm";
@@ -18,9 +19,8 @@ export default function Home() {
   const [genderFilter, setGenderFilter] = useState("all");
 const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 const [showCreateForm, setShowCreateForm] = useState(false);
-const [contactStep, setContactStep] = useState<"profile" | "compose" | "demo">("profile");
-const [contactEmail, setContactEmail] = useState("");
-const [contactMessage, setContactMessage] = useState("");
+const [contactStep, setContactStep] = useState<"profile" | "compose">("profile");
+const [contactBusy, setContactBusy] = useState(false);
 const contactHeading = useRef<HTMLHeadingElement | null>(null);
 const messageTrigger = useRef<HTMLButtonElement | null>(null);
 const dialogTrigger = useRef<HTMLButtonElement | null>(null);
@@ -49,7 +49,13 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
     const client = browserSupabase();
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null); setAuthLoading(false);
-      if (session) setShowSignIn(false);
+      if (session) {
+        setShowSignIn(false);
+        if (new URLSearchParams(window.location.search).get("manage") === "1") {
+          setShowManage(true);
+          window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+        }
+      }
       if (event === "SIGNED_OUT") { setShowManage(false); setShowCreateForm(false); setEditing(undefined); }
     });
     client.auth.getSession().then(async ({ data, error }) => {
@@ -59,6 +65,7 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
         setUser(verified.data.user);
         if (verified.error) setNotice("Please sign in again.");
       }
+      if (!data.session && new URLSearchParams(window.location.search).get("manage") === "1") setShowSignIn(true);
       setAuthLoading(false);
     }).catch(() => { setNotice("Sign-in could not be checked. Please try again."); setAuthLoading(false); });
     const params = new URLSearchParams(window.location.hash.slice(1));
@@ -332,8 +339,6 @@ setShowManage(false);
   onClick={(event) => {
     dialogTrigger.current = event.currentTarget;
     setContactStep("profile");
-    setContactEmail("");
-    setContactMessage("");
     setSelectedListing(listing);
   }}
 >
@@ -362,7 +367,7 @@ setShowManage(false);
     className={styles.modalBackdrop}
     role="presentation"
     onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
+      if (!contactBusy && event.target === event.currentTarget) {
         setSelectedListing(null);
       }
     }}
@@ -372,12 +377,14 @@ setShowManage(false);
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-title"
+      data-busy={contactBusy}
     >
       <button
         className={styles.closeButton}
         type="button"
         onClick={() => setSelectedListing(null)}
         aria-label="Close profile"
+        disabled={contactBusy}
       >
         CLOSE ×
       </button>
@@ -445,58 +452,23 @@ setShowManage(false);
           type="button"
           hidden={contactStep !== "profile"}
           style={contactStep !== "profile" ? { display: "none" } : undefined}
-          onClick={() => setContactStep("compose")}
+          onClick={() => { if (!user) { setSelectedListing(null); setShowSignIn(true); } else setContactStep("compose"); }}
         >
-          TRY CONTACT DEMO
+          {user ? "SEND MESSAGE" : "SIGN IN TO SEND A MESSAGE"}
           <span aria-hidden="true">→</span>
         </button>
 
         {contactStep === "profile" && <p className={styles.privacyNote}>
-          Contact delivery is not connected yet. You can try the demo form below; it does not send messages.
+          Contact this rider or team privately. Your email will be shared with them so they can reply.
         </p>}
 
         {contactStep !== "profile" && (
           <section className={styles.profileSection} aria-labelledby="contact-title">
             <h3 id="contact-title" ref={contactHeading} tabIndex={-1} style={{ fontSize: "1.5rem", marginBottom: 16 }}>
-              {contactStep === "demo" ? "NOTHING SENT — THIS IS A DEMO" : `CONTACT ${selectedListing.name.toUpperCase()}`}
+              {`CONTACT ${selectedListing.name.toUpperCase()}`}
             </h3>
-            {contactStep === "compose" ? (
-              <form onSubmit={(event) => {
-                event.preventDefault();
-                const field = event.currentTarget.elements.namedItem("message") as HTMLTextAreaElement;
-                field.setCustomValidity(contactMessage.trim() ? "" : "Please write a message.");
-                if (event.currentTarget.reportValidity()) setContactStep("demo");
-              }}>
-                <p className={styles.fieldHint}>Introduce yourself and tell them why you would make a good team.</p>
-                <div className={styles.fieldGrid}>
-                  <label className={styles.fullField}>
-                    <span>YOUR EMAIL — NOT PUBLIC</span>
-                    <input name="email" type="email" autoComplete="email" required maxLength={254}
-                      value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
-                  </label>
-                  <label className={styles.fullField}>
-                    <span>YOUR MESSAGE</span>
-                    <textarea name="message" rows={5} required maxLength={1500}
-                      value={contactMessage} onChange={(event) => {
-                        event.currentTarget.setCustomValidity("");
-                        setContactMessage(event.target.value);
-                      }} />
-                  </label>
-                </div>
-                <p className={styles.privacyNote} style={{ marginBottom: 16 }}>
-                  Demo only: nothing is sent or saved to a server. In the finished app,
-                  you’ll confirm your email before your message is forwarded.
-                  Closing this profile discards your draft.
-                </p>
-                <button className={styles.formSubmit} type="submit">TRY CONTACT FLOW <span aria-hidden="true">→</span></button>
-              </form>
-            ) : (
-              <>
-                <p className={styles.fieldHint}>In the finished app, you’ll receive an email with a confirmation link. Your message will only be forwarded after you confirm. This demo has sent neither an email nor a message.</p>
-                <button className={styles.formSubmit} type="button" onClick={() => setContactStep("compose")}>BACK TO MESSAGE</button>
-              </>
-            )}
-            <button className={styles.profileButton} style={{ marginTop: 20 }} type="button" onClick={() => {
+            <ContactForm listingId={selectedListing.id} email={user?.email ?? ""} onBusy={setContactBusy} />
+            <button disabled={contactBusy} className={styles.profileButton} style={{ marginTop: 20 }} type="button" onClick={() => {
               setContactStep("profile");
               requestAnimationFrame(() => messageTrigger.current?.focus());
             }}>BACK TO PROFILE <span aria-hidden="true">←</span></button>

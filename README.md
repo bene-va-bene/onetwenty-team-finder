@@ -1,6 +1,6 @@
 # RAD RACE ONETWENTY 2027 — Team Finder
 
-Updated 17 September 2026. Read this before continuing or reconstructing the project.
+Updated 18 September 2026. Read this before continuing or reconstructing the project.
 Verify repository and live services before writes. This document is not proof of deployment.
 
 ## Current state
@@ -11,14 +11,21 @@ publish, edit, close, reopen and delete owned listings; private photo storage wi
 server-side re-encoding; verified-user and ownership checks; recorded publication/photo
 consent; immutable ten-calendar-month expiry; optimistic revisions for concurrent edits.
 
-The board no longer contains fictional riders. Contact is explicitly a DEMO and sends no mail.
+The board contains real listings. The new mail package implements verified contact relay,
+a private outbox, two-calendar-month reminders and a daily expiry purge. Its migration is
+applied to the dedicated project; installing/configuring the app and deploying the daily
+schedule are still required. SMTP sign-in through STRATO was tested successfully by Bene.
 No GitHub remote or Vercel deployment has been verified in this handoff.
 
-**Before public launch, still required:** custom SMTP; real contact relay; two-month reminders;
-automatic PERMANENT deletion at ten months; abandoned-draft/orphan-image cleanup; account
-deletion; admin/reporting; privacy/imprint; universal HEIC fallback; real iOS/Android tests.
-Expired listings are hidden and cannot reopen, but that is NOT the permanent-deletion worker.
-Deleting a listing removes its photos and consent rows; its sign-in account remains.
+**Before public launch, still required:** configure/test app SMTP (separate from Auth SMTP),
+deploy and monitor the daily worker; abandoned-draft/orphan-image cleanup; user-requested
+account deletion; admin/reporting; privacy/imprint; universal HEIC fallback; physical-device tests.
+Manual deletion removes photos, consents and associated mail jobs. Expiry cleanup also removes
+the sign-in account when it has no remaining listings or contact references. Shared account
+data needed by another current listing is retained until that use ends. Ten-month-old accounts
+with no listings/contact references are also queued for deletion. The dedicated project must
+never host unrelated application accounts. Already delivered emails in people's mailboxes and
+provider backups cannot be recalled or erased by this application.
 
 ## Local project and install
 
@@ -28,22 +35,24 @@ manual patches. Do not assume assistant scratch changes are installed in his rep
 Local project:
 `/Users/benedikteiche/Library/CloudStorage/GoogleDrive-bene@rad-race.com/Meine Ablage/Events/Onetwenty/2027/team-finder`
 
-Save all editor buffers and stop npm run dev with Ctrl+C. Extract team-finder-backend.zip
+Save all editor buffers and stop npm run dev with Ctrl+C. Extract team-finder-mail.zip
 into Downloads. Run from the EXISTING project terminal:
 
 ~~~bash
-node ~/Downloads/team-finder-backend/install.mjs
-npm install --save-exact @supabase/supabase-js@2.116.0 sharp@0.35.4
+node ~/Downloads/team-finder-mail/install.mjs
+npm install --save-exact nodemailer@10.0.10 server-only@0.0.1
+npm install --save-dev --save-exact @types/nodemailer@8.0.2
 npm run lint
 npm run build
+node --test tests/mail.test.mjs
 npm run dev
 ~~~
 
-The installer validates the project name, backs up affected files under
-~/Documents/TeamFinderBackups/, copies only the explicit file list, and creates .env.local
-only if absent. Conflicting Supabase config stops it before changes. It preserves
-package.json, package-lock.json, layout.tsx, globals.css and the RAD RACE favicon.
-The npm command adds two pinned dependencies and updates the existing lockfile.
+The mail installer requires the previous backend, validates the project name and Supabase
+project, backs up affected files under ~/Documents/TeamFinderBackups/, and copies only the
+explicit file list. It does not overwrite .env.local or package/lock/layout/global CSS/favicon.
+Existing vercel.json is merged with the maintenance schedule; a conflicting schedule stops
+installation. npm adds pinned dependencies and updates the existing lockfile.
 Do not replace the entire src/app folder or copy node_modules. Use npm ci after cloning.
 Keep .env.local ignored. Review git diff and commit after local checks; never force-push.
 
@@ -59,19 +68,37 @@ Keep .env.local ignored. Review git diff and commit after local checks; never fo
 | Dashboard | https://supabase.com/dashboard/project/aqzxhfiaezmwkaqtktvi |
 | Added project cost quoted when created | 0 monthly; recheck before new paid resources |
 
-supabase.env.example contains only the URL and publishable key. The installer creates
-.env.local at project ROOT, not in src. No service-role/secret key is required by this package.
-Never put a secret key in a NEXT_PUBLIC_ variable.
+Keep the existing public Supabase URL/key in .env.local at project ROOT, not in src.
+Add the four settings from mail.env.example to that file. The service-role key and SMTP
+password are SERVER ONLY. Never prefix these secrets with NEXT_PUBLIC_, put them in the
+README, browser code, Git or chat. If a dotenv value contains $, escape it as \$; quote
+passwords containing #. Restart npm run dev after environment changes.
+
+| Mail setting | Value |
+| --- | --- |
+| Sender and SMTP user | teamfinder@rad-race.com |
+| Sender name | RAD RACE Team Finder |
+| SMTP host / port | smtp.strato.de / 465, implicit TLS |
+| SMTP_PASSWORD | password for that dedicated STRATO mailbox |
+| APP_URL | http://localhost:3000 locally; final HTTPS origin in production |
+| SUPABASE_SERVICE_ROLE_KEY | dedicated project's server-only service-role key |
+| CRON_SECRET | at least 32 random characters; generate via node:crypto |
+
+Supabase Auth custom SMTP is already configured and user-tested. That configuration does
+not configure Next.js: the app needs SMTP_PASSWORD separately for contact/reminder messages.
+STRATO inbox rule: no conditions, Verwerfen, no following rules. Bene tested an incoming
+mail and found inbox/trash/spam empty. Replies to teamfinder@rad-race.com are discarded.
+Contact emails use Reply-To = verified sender email; reminders explain that replies are
+discarded. No IMAP connection or Sent-folder copy is created by the app. Resend is not used.
 
 In Authentication → URL Configuration, configure the local test:
 - Site URL: http://localhost:3000
 - Redirect URLs: add http://localhost:3000
 - Keep the standard email-link template using {{ .ConfirmationURL }}.
-- Test with the email address belonging to your Supabase organization membership.
+- Test with your personal address, never the mailbox that discards incoming messages.
 
-Auth dashboard configuration has NOT been inspected or changed by this package.
-The default mailer only sends to organization members; currently two test messages/hour.
-Configure custom SMTP before public use. Do not disable email verification as a workaround.
+Auth configuration was entered by Bene, who confirmed delivery and sign-in. Keep email
+verification enabled. The assistant did not receive the SMTP password.
 Set final HTTPS domain and redirects before deployment. A phone's localhost is the phone,
 not your Mac; use a reachable configured origin for device testing.
 
@@ -103,16 +130,23 @@ Sources: [email links](https://supabase.com/docs/guides/auth/auth-email-password
 - Close removes from public immediately, allows reopening before original expiry.
 - Ten CALENDAR months from first publication, unchanged by edits/reopen. No automatic
   closure for inactivity or event date. Every two months remind active owners; no response
-  leaves the listing active. Reminder and permanent-deletion workers are still pending.
-- Contact ultimately relays verified messages without publishing recipient email.
-  Reply-address disclosure behavior must be explicit when implementing the relay.
+  leaves the listing active. The daily worker must be deployed and monitored to execute this.
+- Contact relays verified messages without publishing recipient email. The sender explicitly
+  agrees to share their verified email with the recipient; a recipient's reply discloses their
+  own address to the sender. Existing verified sessions do not require another email link.
 - No unsolicited old-sheet imports, paid analytics, chat platform, CMS or new paid services.
 
 ## Files
 
 | File | Responsibility |
 | --- | --- |
-| src/app/page.tsx | Real board, filters, profiles/contact demo, account entry points, focus/scroll lock |
+| src/app/page.tsx | Real board, filters, profiles, account entry points, focus/scroll lock |
+| src/app/ContactForm.tsx | Verified contact, disclosure, stable retry ID and delivery feedback |
+| src/lib/server/mail.ts | Server-only credentials, private RPC, plain-text SMTP, safe failure states |
+| src/app/api/contact/route.ts | Verified bearer, bounded JSON, enqueue, immediate delivery attempt |
+| src/app/api/maintenance/route.ts | Secret-protected daily expiry/account cleanup and reminder sending |
+| vercel.json | Daily production cron, 05:00 UTC |
+| scripts/run-maintenance.mjs | Manual authenticated worker run using local env, no secrets printed |
 | src/app/CreateListingForm.tsx | Form, preview, editing, publication and upload orchestration |
 | src/app/PhotoPicker.tsx | Local square crop, drag/zoom, replace/remove, errors and URL cleanup |
 | src/app/SignIn.tsx | Email-link requests and resend feedback |
@@ -150,8 +184,10 @@ Owners edit via private blob downloads, including for closed listings.
 Applied to the dedicated project, in order:
 1. 20260917215026_team_finder_core.sql
 2. 20260917215837_consent_policy.sql
+3. 20260918065232_mail_lifecycle.sql
 
-Do not manually rerun applied migrations on the live project. They reconstruct an EMPTY
+Do not manually rerun applied migrations on the live project. MCP-assigned live migration
+timestamps may differ; match their names and contents. These reconstruct an EMPTY
 project in order. Create future filenames via supabase migration new, not hand-written dates.
 
 private.listings holds ownership and validated fields; email stays in auth.users.
@@ -168,6 +204,62 @@ All dates are server-derived. Ten months means UTC calendar months, not 300 days
 Deletion closes first, removes photo objects, then deletes the record. Failure leaves a
 closed listing for retry. Publication/photo consent is required and recorded on every publish.
 
+## Mail queue and daily lifecycle
+
+private.mail_jobs stores listing FK, sender FK, message, unique request UUID, reminder
+milestone, attempts/state and expiry. No recipient address is copied into queue rows.
+Only verified users can enqueue contacts. No anonymous access to queue/worker RPCs.
+The server resolves recipient/sender emails only at claim time. Fixed subject and structured
+addresses prevent header injection; messages are plain text, with no tracking/attachments.
+No message content, SMTP diagnostics or credentials are logged.
+
+Limits in one DB transaction: 5 messages/hour and 20/day per sender, one/minute to a listing,
+50/day per listing. Account/listing locks serialize requests, unique request ID deduplicates
+network retries. Recipients' emails are never returned to the frontend. Sent message bodies
+are cleared immediately; remaining metadata and unsent content expire with the target listing
+or ten months after contact, whichever is earlier. Listing deletion cascades all its mail jobs.
+
+Jobs: pending → sending → sent / failed / uncertain. Row locking prevents two workers
+claiming the same job. Definite pre-acceptance failures retry after at least one hour, at most
+three attempts; actual retry is on next worker run (normally daily). Sending abandoned for
+15 minutes becomes uncertain. Unknown SMTP outcomes are NOT automatically retried because
+SMTP offers no exactly-once guarantee. A stable Message-ID helps traceability but does not
+guarantee recipient-side deduplication. Failed/uncertain jobs need operator review; no admin
+UI for that exists yet. SMTP acceptance is not proof of inbox delivery, and discarding inbox
+mail also discards bounce notifications. Close prevents queued delivery, but cannot recall a
+message already handed to SMTP during a simultaneous close/delete.
+
+Reminders use UTC calendar anniversaries at months 2,4,6,8. Only active, unexpired listings
+qualify. Unique listing/milestone prevents duplicates. After downtime only the latest due
+milestone is created, not all missed reminders. Keep online requires no action; edit/close
+links lead to /?manage=1. GET links never mutate or delete data. Dates are shown in the mail.
+
+Retention: public access stops at expires_at. The daily worker removes all objects under the
+listing prefix through Storage API, checks the bucket is empty, then deletes listing,
+consents and messages. Failures leave the hidden listing for retry. Upload policy locks the
+listing and blocks uploads after expiry. Account cleanup blocks new writes before Auth's
+hard-delete API; require_user consults auth.users so a deleted/retiring user cannot mutate
+even with a still-unexpired JWT. Accounts with other listings or contact references remain.
+
+Worker uses CRON_SECRET bearer, constant-time comparison, a two-minute lease and bounded
+60-second execution. It prioritizes deletion, then mail. Deletions normally occur on the next
+daily run, up to about 24 hours after expiry; outages/backlogs can delay them. Responses have
+only counts. Any errors/time-budget exhaustion return 503 and require checking/re-running
+the worker. Mail send failures do not prevent expiry cleanup. Large backlogs need extra runs;
+do not promise an exact ten-month-to-the-second erasure or unmonitored guaranteed delivery.
+
+### Activating the worker
+
+After local tests, set all four server variables in Vercel Production plus existing public
+Supabase variables. Use the final HTTPS APP_URL and Auth redirects. Deploy vercel.json.
+Vercel attaches Authorization: Bearer CRON_SECRET to /api/maintenance. Cron does not run on
+your laptop and this package does NOT deploy a Vercel project. Before launch confirm the
+schedule appears, run it once, inspect status/counts and arrange monitoring of failures.
+From the local project, `node scripts/run-maintenance.mjs` calls APP_URL using .env.local.
+That run performs real due cleanup/reminders; use a test project for simulated old dates.
+Do not alter real users' publication dates to test expiry. No emails have been sent by the
+assistant. Production mail/cron end-to-end validation remains required.
+
 ## Verification and combined local test
 
 Passed in the assistant test workspace:
@@ -176,28 +268,40 @@ Passed in the assistant test workspace:
 - Two rollback-only synthetic auth users: cross-owner update/save/delete denied, direct private
   reads denied, field validation and revision conflicts enforced, close hides, reopen preserves
   expiry, expired cannot reopen, delete removes own record.
-- Supabase security advisor: no findings after migrations.
+- Mail lifecycle rollback test: rate limits, duplicate requests/claims, private recipient,
+  reminder milestone, closed cancellation, expired upload rejection, photo-cleanup gate,
+  deletion cascades and retiring-account gate pass.
+- Mock SMTP tests: Reply-To/plain text, ambiguous DATA failure, explicit rejection,
+  database outage after acceptance and reminder links pass. No network mail sent.
+- Supabase security advisor: no schema/RLS findings; account-wide leaked-password protection
+  warning remains (this app uses email links). Do not claim all Auth hardening is complete.
 
-No test users/listings retained; no email sent. Interactive browser, real email/session and
-real-device tests have NOT been claimed as passed.
+No synthetic test users/listings retained; assistant sent no mail. Bene confirmed the prior
+backend CRUD/photo flows and STRATO sign-in end-to-end. New relay/cron and physical-device
+tests are not yet user-verified.
 
 Local test:
 1. Empty real board, responsive UI, correct favicon.
-2. Sign in using Supabase member email; open link, reload, My listings stays available.
+2. Sign in using your personal email; open link, reload, My listings stays available.
 3. Create rider listing with several vibes and cropped photo; preview then publish.
 4. Reload: listing/photo persist; no email on public profile.
 5. My listings → Edit: fields/photo preserved; change and publish.
 6. Close hides listing/photo; reopen preserves original deletion date.
 7. Create team: no age; vacancies and sought gender work.
 8. Permanently delete with confirmation; listing and photos gone. Sign out.
-9. Contact stays explicitly a demo. Commit changes and lockfile after checks.
+9. Using two addresses you control, publish from A and send a message from verified B.
+   Check sender brand, Reply-To B, recipient address absent from browser network responses;
+   reply from A and verify it arrives at B. Double click must produce one message.
+10. Close A's listing and check it cannot receive new messages. Run the authenticated worker
+    once and inspect counts. Do not send to unrelated riders for a test.
+11. Verify reminder/expiry scenarios using tests/mail-lifecycle.sql (rollback-only synthetic
+    fixtures) in a test DB or controlled operator session; never send fixture emails.
+12. Update Git/lockfile after checks. Configure production cron separately before release.
 
 ## Next packages
 
-1. Production SMTP and actual private contact relay, rate limits, abuse handling,
-   idempotent send and explicit reply-address behavior.
-2. Daily idempotent two-month reminders and ten-month permanent deletion, all related
-   photos/messages, account retention, retry/orphan cleanup. Mandatory before release.
+1. Install/configure and user-test the current mail package; deploy/monitor daily cron.
+2. Add abuse reporting/admin handling, user-requested account deletion and orphan/draft cleanup.
 3. HEIC fallback and physical iPhone Safari/Android Chrome tests.
 4. Admin, reporting, legal pages, account deletion, Vercel/domain and release checks.
 
@@ -237,10 +341,16 @@ Copy this together with the current README and source files into a new coding co
 >
 > Users publish/edit/close/reopen/delete. Close hides immediately. Expiry is ten calendar
 > months after FIRST publication, never extended by edits/reopen. Every two months remind
-> active owners; no inactivity/event-date closure. Finish permanent deletion of listings,
-> photos and messages via daily idempotent worker before launch: expiry hiding is not enough.
-> Finish production SMTP/contact relay, abuse limits, cleanup, legal/admin/account deletion
-> and real-device tests. Contact is currently a labelled demo; do not claim mail is sent.
+> active owners; no inactivity/event-date closure. Deploy and verify the daily permanent
+> deletion worker before launch: expiry hiding alone is not enough.
+> SMTP sign-in is verified through STRATO teamfinder@rad-race.com. Use only STRATO, no Resend.
+> Contact/outbox and daily lifecycle are implemented in the mail package; check installation,
+> server env, Vercel cron deployment and actual delivery before claiming they are operational.
+> Use server-only SMTP password/service-role key, CRON_SECRET, fixed TLS465 sender and APP_URL.
+> Preserve private recipient, explicit sender-email disclosure, verified Reply-To, DB rate limits,
+> unique request IDs, bounded queue worker and no automatic retry of ambiguous SMTP outcomes.
+> Preserve calendar reminders, storage-before-row deletion and gated unused-account cleanup.
+> Finish abuse handling, orphan cleanup, legal/admin/account deletion and physical-device tests.
 > Avoid unnecessary paid services, analytics, chat/CMS, and old-sheet imports. Verify costs.
 >
 > Run security advisor, ownership rollback tests, lint/build and one combined acceptance test.
@@ -256,3 +366,14 @@ https://images.squarespace-cdn.com/content/v1/652e5fda918ed33c257c1fdf/22baa902-
 
 The hero remains an event asset. The new SVG is a text fallback, not an invented logo.
 Verify final 2027 branding and image rights before public launch.
+
+
+## Approved email copy — 18 September 2026
+
+The approved contact/reminder text lives in src/lib/server/mail.ts, using plain-text links, original publication/deletion dates and verified sender Reply-To. Both messages end with “much love” followed by “RAD RACE”. Contact subject: “Someone wants to ride with you.” Reminder subject: “Still looking for your crew?”
+
+The approved sign-in HTML is supabase/templates/sign-in.html. In the dedicated Supabase project aqzxhfiaezmwkaqtktvi, manually copy its full contents to BOTH Authentication email templates: Magic Link and Confirm signup. Subject for both: “Your link. Your team. Let’s go.” Keep {{ .ConfirmationURL }} unchanged. Copying this local file does not update hosted templates. Verify new-account and existing-account sign-in after saving. Other authentication templates are outside this change.
+
+Reconstruction prompt addition: Preserve the approved email wording in these source files exactly; do not reintroduce discarded headings or replace “much love”. Configure both hosted sign-in templates from the versioned HTML, retaining Supabase’s confirmation URL. Verify contact Reply-To and immutable reminder deletion dates. Do not include secrets in documentation.
+
+Installation status: package prepared and tested locally; user must run installer on Mac and save the two Supabase templates separately.

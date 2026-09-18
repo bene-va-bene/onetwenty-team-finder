@@ -1,0 +1,10 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+require('@next/env').loadEnvConfig(process.cwd());
+if (!process.env.CRON_SECRET || process.env.CRON_SECRET.length < 32 || !process.env.APP_URL) throw new Error('Set APP_URL and CRON_SECRET in .env.local first.');
+const url = new URL('/api/maintenance', process.env.APP_URL);
+if (url.protocol !== 'https:' && !(url.protocol === 'http:' && url.hostname === 'localhost')) throw new Error('Use HTTPS except for localhost.');
+const response = await fetch(url, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` }, signal: AbortSignal.timeout(70000) });
+console.log(`Maintenance HTTP ${response.status}`);
+console.log(await response.text());
+if (!response.ok) process.exitCode = 1;
