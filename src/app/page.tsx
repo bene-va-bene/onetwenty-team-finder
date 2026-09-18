@@ -7,6 +7,7 @@ import { dateLabel, message, meta, photoUrl, rpc, vibes, type Listing } from "@/
 import SignIn from "./SignIn";
 import MyListings from "./MyListings";
 import ContactForm from "./ContactForm";
+import Messages from "./Messages";
 import styles from "./page.module.css";
 
 import CreateListingForm from "./CreateListingForm";
@@ -33,6 +34,23 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
   const [notice, setNotice] = useState("");
   const [showSignIn, setShowSignIn] = useState(false);
   const [showManage, setShowManage] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
+  const [chatId, setChatId] = useState<string>();
+  const [unread, setUnread] = useState(0);
+  const [unreadRefresh, setUnreadRefresh] = useState(0);
+  const refreshUnread = useCallback(() => setUnreadRefresh(n => n + 1), []);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    async function load() {
+      if (document.hidden) return;
+      try { const count = await rpc<number>("chat_unread"); if (alive) setUnread(count); }
+      catch { /* Keep the last known count; Messages displays connection errors. */ }
+    }
+    void load(); const timer = setInterval(() => void load(), 30000);
+    window.addEventListener("focus", load);
+    return () => { alive = false; clearInterval(timer); window.removeEventListener("focus", load); };
+  }, [user, unreadRefresh]);
   const [editing, setEditing] = useState<Listing | undefined>();
   const reload = useCallback(async () => {
     setLoading(true); setLoadError("");
@@ -56,7 +74,7 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
           window.history.replaceState(null, "", window.location.pathname + window.location.hash);
         }
       }
-      if (event === "SIGNED_OUT") { setShowManage(false); setShowCreateForm(false); setEditing(undefined); }
+      if (event === "SIGNED_OUT") { setShowManage(false); setShowMessages(false); setSelectedListing(null); setUnread(0); setShowCreateForm(false); setEditing(undefined); }
     });
     client.auth.getSession().then(async ({ data, error }) => {
       if (error) setNotice("That sign-in link could not be used. Please request a new one.");
@@ -88,7 +106,7 @@ useEffect(() => {
 }, [contactStep]);
 
 useEffect(() => {
-if (!selectedListing && !showCreateForm && !showSignIn && !showManage) {    return;
+if (!selectedListing && !showCreateForm && !showSignIn && !showManage && !showMessages) {    return;
   }
 
   const scrollPosition = window.scrollY;
@@ -125,6 +143,7 @@ setSelectedListing(null);
 setShowCreateForm(false);
 setShowSignIn(false);
 setShowManage(false);
+setShowMessages(false);
       return;
     }
     if (event.key === "Tab") {
@@ -170,7 +189,7 @@ setShowManage(false);
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     window.scrollTo(0, scrollPosition);
   };
-}, [selectedListing, showCreateForm, showSignIn, showManage]);
+}, [selectedListing, showCreateForm, showSignIn, showManage, showMessages]);
 
   const visibleListings = useMemo(() => {
     return listings.filter((listing) => {
@@ -196,6 +215,7 @@ setShowManage(false);
         <span className={styles.event}>ONETWENTY 2027</span>
         <nav className={styles.accountNav} aria-label="Account">
           <button type="button" disabled={authLoading || !isConfigured} onClick={(event) => { dialogTrigger.current = event.currentTarget; if (user) setShowManage(true); else setShowSignIn(true); }}>{authLoading ? "LOADING…" : user ? "MY LISTINGS" : "SIGN IN"}</button>
+          {user && <button type="button" onClick={(event) => { dialogTrigger.current = event.currentTarget; setChatId(undefined); setShowMessages(true); }}>MESSAGES{unread > 0 ? ` (${unread})` : ""}</button>}
           {user && <button type="button" onClick={() => void signOut()}>SIGN OUT</button>}
         </nav>
 
@@ -360,6 +380,7 @@ setShowManage(false);
       {showCreateForm && (
   <CreateListingForm initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { setShowCreateForm(false); setEditing(undefined); setNotice("Your listing is now online. Manage it under My listings."); void reload(); }} />
 )}
+{showMessages && user && <Messages initialId={chatId} onClose={() => { setShowMessages(false); refreshUnread(); }} onUnreadChanged={refreshUnread} />}
 {showSignIn && <SignIn onClose={() => setShowSignIn(false)} />}
 {showManage && <MyListings onClose={() => setShowManage(false)} onChanged={() => void reload()} onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }} />}
 {selectedListing && (
@@ -459,7 +480,7 @@ setShowManage(false);
         </button>
 
         {contactStep === "profile" && <p className={styles.privacyNote}>
-          Contact this rider or team privately. Your email will be shared with them so they can reply.
+          Chat privately with this rider or team. Replies appear in Messages. Your email address stays private.
         </p>}
 
         {contactStep !== "profile" && (
@@ -467,7 +488,7 @@ setShowManage(false);
             <h3 id="contact-title" ref={contactHeading} tabIndex={-1} style={{ fontSize: "1.5rem", marginBottom: 16 }}>
               {`CONTACT ${selectedListing.name.toUpperCase()}`}
             </h3>
-            <ContactForm listingId={selectedListing.id} email={user?.email ?? ""} onBusy={setContactBusy} />
+            <ContactForm listingId={selectedListing.id} onBusy={setContactBusy} onSent={(id) => { setChatId(id); setSelectedListing(null); setShowMessages(true); refreshUnread(); }} />
             <button disabled={contactBusy} className={styles.profileButton} style={{ marginTop: 20 }} type="button" onClick={() => {
               setContactStep("profile");
               requestAnimationFrame(() => messageTrigger.current?.focus());

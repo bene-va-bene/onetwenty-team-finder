@@ -1,3 +1,74 @@
+## Current change: private in-app messaging (18 September 2026)
+
+This section supersedes the older contact-email architecture below. New contact messages
+stay in the app. Sign-in links and the approved two-monthly listing reminders remain email.
+The prior contact email copy is retained only as historical code; it is no longer enqueued.
+
+- Verified sign-in is sufficient: a sender does not need their own listing or public profile.
+- One private conversation per listing and contacting account; a chat name is requested on
+  first contact, never derived from an email address. Owner identity is the listing name.
+- Messages opens the paginated inbox; unread count is visible in the account navigation.
+  Open chats poll every 5 seconds, inbox every 10, navigation count every 30. Hidden tabs do
+  not poll. There are no email or push notifications for chats.
+- Replies continue when a listing is closed, but no new conversations can start on it.
+  Both participants can block a conversation; only the blocking participant can undo their
+  block. This pauses both directions for that conversation, not all contact from an account.
+- Listing deletion cascades conversations and messages, including the other participant’s
+  copy. Expired listings/chats become inaccessible immediately; the existing maintenance
+  worker physically deletes them. Ten months from first publication remains immutable.
+- Unlisted users are protected from account cleanup while they have conversations.
+- Each send has a per-sender idempotency key. Server checks verified, non-banned accounts,
+  membership, expiry, blocks, 1–1500 characters, 10 messages/minute and 200/day per sender.
+  New conversations are additionally limited to 20 recently active conversations per sender.
+- Tables are private, RLS enabled and direct client grants revoked. Public SECURITY INVOKER
+  RPC wrappers call fixed-search-path private implementations with participant checks.
+  No email address or auth user ID is included in chat responses. Messages are rendered as text.
+- Old email conversations are not imported. Old `/api/contact` returns 410 and the old
+  `enqueue_contact` RPC tells stale clients to refresh. The migration refuses cutover while contact emails are pending, failed or in flight,
+  so queued messages cannot silently disappear. Already sent emails cannot be recalled.
+
+Validation: lint and production build passed; transaction-only database tests passed;
+Chromium browser interaction checks passed at 390px and 1280px widths using mocked Auth/RPC.
+Physical iPhone/Android and two real users on the deployed version remain the final acceptance test.
+
+### Messaging rollout
+
+1. Apply `supabase/migrations/20260918111052_in_app_messages.sql` to the dedicated
+   `aqzxhfiaezmwkaqtktvi` project immediately before deploying this revision. This is a
+   deliberate contact-channel cutover: old open tabs must refresh. No new secrets or paid
+   services are needed. Do not apply to the Tour de Friends project.
+2. Deploy this revision with the existing Production environment variables. Keep STRATO
+   credentials because the reminder worker still uses them.
+3. Test with two real signed-in accounts: one without a listing contacts a listing owner;
+   owner replies in Messages; check unread, reload, block/unblock, and mobile layout.
+4. Closing a listing must preserve its existing chats. Deleting it must remove the chats.
+   Do not change real publication dates to test automatic expiry.
+
+Rollback: code rollback alone does not restore contact email. Restore the previous
+`private.enqueue_contact` implementation from the mail migration deliberately if reverting
+channels; previous email jobs must not be replayed. Preserve chat tables/data.
+
+### Messaging verification and reproduction
+
+`npm run lint`, `npm run build`; `node --test tests/mail.test.mjs` protects unchanged reminder
+behavior and legacy mail internals. `tests/chat.sql` is a transaction ending in ROLLBACK:
+run after the migration in a test database; it checks participants vs strangers/anon,
+no-listing senders, idempotency, blocks, unread acknowledgements, pagination, rate limits,
+closed/expired listings, cleanup protection and deletion cascade. No test emails are sent.
+
+`tests/chat-ui.cjs` is a browser interaction test with mocked Supabase Auth/RPC, not an
+end-to-end test of the live database. Install Playwright/Chromium in your test environment;
+start dev with NEXT_PUBLIC_SUPABASE_URL=https://chat-test.supabase.co and
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=test-public-key, then run the script. Default test URL:
+http://127.0.0.1:3101 (override CHAT_TEST_URL). Do not replace your normal env file with fixtures.
+
+Reconstruction: preserve the in-app channel, private participant-only access, no required
+public profile, non-email chat names, cursor-based message history, idempotency, block checks,
+and listing-linked deletion. Preserve the exact approved sign-in/reminder email wording.
+Moderation/reporting and operator privacy/legal review remain separate launch tasks.
+
+---
+
 # RAD RACE ONETWENTY 2027 — Team Finder
 
 Updated 18 September 2026. Read this before continuing or reconstructing the project.
