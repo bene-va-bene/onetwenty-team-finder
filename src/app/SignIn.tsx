@@ -24,6 +24,7 @@ export default function SignIn({ onClose }: { onClose: () => void }) {
     }}>
       <p className={styles.fieldHint}>We’ll email you a sign-in link. Open it to message other riders or manage your listings. You don’t need a listing to chat. Your email address stays private.</p>
       <div className={styles.fieldGrid}><label className={styles.fullField}><span>EMAIL ADDRESS</span><input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => { setEmail(event.target.value); setSent(false); }} /></label></div>
+      <p className={styles.fieldHint}>Read how we handle your account and messages in our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>privacy notice (opens a new tab)</a>.</p>
       {sent && <p className={styles.notice} role="status">Check your inbox, including spam. Open the sign-in link, then open Messages or choose a listing to contact.</p>}
       {!isConfigured && <p className={styles.notice}>The Team Finder connection has not been configured yet.</p>}
       {error && <p className={styles.notice} role="alert">{error}</p>}

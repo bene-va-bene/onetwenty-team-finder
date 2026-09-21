@@ -502,7 +502,11 @@ setShowMessages(false);
 
       <footer className={styles.footer}>
         <span>RAD RACE ONETWENTY 2027</span>
-        <span>TEAMWORK MAKES THE DREAM WORK.</span>
+        <nav aria-label="Legal and support" style={{ display: "flex", flexWrap: "wrap", gap: "16px 24px" }}>
+          <a href="/privacy">PRIVACY</a>
+          <a href="https://www.rad-race.com/imprint">IMPRINT</a>
+          <a href="mailto:info@rad-race.com?subject=Teamfinder%20report">CONTACT / REPORT</a>
+        </nav>
       </footer>
     </main>
   );

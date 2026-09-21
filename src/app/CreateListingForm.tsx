@@ -512,6 +512,7 @@ export default function CreateListingForm({
             </legend>
 
             <div className={styles.consentList}>
+              <p className={styles.fieldHint}>Read about public listings, photos and deletion in our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>privacy notice (opens a new tab)</a>.</p>
               <label>
                 <input type="checkbox" required />
                 <span>

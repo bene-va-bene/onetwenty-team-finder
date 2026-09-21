@@ -49,7 +49,9 @@ export async function GET(request: Request) {
       }
     } catch { counts.errors++; }
     if (counts.mailProcessed === 100 || Date.now() - started >= 35000) counts.moreWorkPossible = true;
+    // Aggregate operational evidence only: never log addresses, message bodies or credentials.
+    console.info("maintenance.completed", { ...counts, durationMs: Date.now() - started });
     return Response.json(counts, { status: counts.errors || counts.timeBudgetReached || counts.moreWorkPossible ? 503 : 200, headers: { "Cache-Control": "no-store" } });
-  } catch { return Response.json({ error: "Maintenance failed", ...counts }, { status: 503 }); }
+  } catch { console.error("maintenance.failed", { ...counts, durationMs: Date.now() - started }); return Response.json({ error: "Maintenance failed", ...counts }, { status: 503 }); }
   finally { if (client) { try { await serverRpc(client, "lifecycle_release", { p_token: token }); } catch { /* lease expires */ } } }
 }
