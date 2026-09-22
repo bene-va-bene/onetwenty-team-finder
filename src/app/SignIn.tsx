@@ -17,7 +17,13 @@ export default function SignIn({ onClose }: { onClose: () => void }) {
       if (Date.now() < retryAt) { setError("Please wait one minute before requesting another email."); return; }
       setBusy(true); setError("");
       try {
-        const { error } = await browserSupabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin, shouldCreateUser: true } });
+        // Preserve the inbox destination if Auth falls back to the configured Site URL.
+        try {
+          if (new URLSearchParams(window.location.search).get("messages") === "1") {
+            localStorage.setItem("teamfinder:sign-in-destination", JSON.stringify({ page: "messages", expires: Date.now() + 3600000 }));
+          }
+        } catch { /* The redirect URL still carries the destination when storage is unavailable. */ }
+        const { error } = await browserSupabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin + (new URLSearchParams(window.location.search).get("messages") === "1" ? "/?messages=1" : ""), shouldCreateUser: true } });
         if (error) throw error;
         setSent(true); setRetryAt(Date.now() + 60_000);
       } catch (error) { setError(message(error)); } finally { setBusy(false); }

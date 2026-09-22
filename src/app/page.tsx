@@ -69,6 +69,16 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
       setUser(session?.user ?? null); setAuthLoading(false);
       if (session) {
         setShowSignIn(false);
+        let inboxRequested = new URLSearchParams(window.location.search).get("messages") === "1";
+        try {
+          const destination = JSON.parse(localStorage.getItem("teamfinder:sign-in-destination") ?? "null");
+          inboxRequested ||= destination?.page === "messages" && destination.expires > Date.now();
+          localStorage.removeItem("teamfinder:sign-in-destination");
+        } catch { /* Optional navigation hint. */ }
+        if (inboxRequested) {
+          setShowMessages(true);
+          window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+        }
         if (new URLSearchParams(window.location.search).get("manage") === "1") {
           setShowManage(true);
           window.history.replaceState(null, "", window.location.pathname + window.location.hash);
@@ -83,7 +93,7 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
         setUser(verified.data.user);
         if (verified.error) setNotice("Please sign in again.");
       }
-      if (!data.session && new URLSearchParams(window.location.search).get("manage") === "1") setShowSignIn(true);
+      if (!data.session && ["manage", "messages"].some(key => new URLSearchParams(window.location.search).get(key) === "1")) setShowSignIn(true);
       setAuthLoading(false);
     }).catch(() => { setNotice("Sign-in could not be checked. Please try again."); setAuthLoading(false); });
     const params = new URLSearchParams(window.location.hash.slice(1));

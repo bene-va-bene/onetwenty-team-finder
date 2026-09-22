@@ -95,6 +95,33 @@ function ConversationView({ thread, onChanged, onBusy }: { thread: Conversation;
   </section>;
 }
 
+function EmailNotifications() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    rpc<boolean>("chat_email_preference").then(value => { if (alive) { setEnabled(value); setError(""); } })
+      .catch(error => { if (alive) setError(message(error)); });
+    return () => { alive = false; };
+  }, [refresh]);
+  return <div>
+    <label className={styles.fieldHint} style={{ display: "flex", alignItems: "center", gap: "0.75rem", minHeight: 44, cursor: "pointer" }}>
+      <input type="checkbox" checked={enabled ?? false} disabled={enabled === null || busy} onChange={async event => {
+        const next = event.target.checked;
+        setBusy(true); setError("");
+        try { setEnabled(await rpc<boolean>("chat_email_preference", { p_enabled: next })); }
+        catch (error) { setError(message(error)); }
+        finally { setBusy(false); }
+      }} />
+      EMAIL ME ABOUT NEW MESSAGES
+    </label>
+    <p className={styles.fieldHint}>{enabled === null ? "Loading notification settings…" : "A heads-up for unread messages, with a link back here. Message content stays in the app. Multiple messages are grouped."}</p>
+    {error && <p className={styles.notice} role="alert">{error} <button type="button" onClick={() => setRefresh(n => n + 1)}>TRY AGAIN</button></p>}
+  </div>;
+}
+
 export default function Messages({ initialId, onClose, onUnreadChanged }: { initialId?: string; onClose: () => void; onUnreadChanged: () => void }) {
   const [threads, setThreads] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState(initialId ?? "");
@@ -135,7 +162,8 @@ export default function Messages({ initialId, onClose, onUnreadChanged }: { init
           <button type="button" disabled={busy} className={styles.photoButton} onClick={() => setSelected("")}>← ALL CONVERSATIONS</button>
           <ConversationView key={active.id} thread={active} onChanged={changed} onBusy={setBusy} />
         </> : <>
-          <p className={styles.fieldHint}>Private conversations with riders and teams. Check here for replies — messages are not sent by email.</p>
+          <p className={styles.fieldHint}>Private conversations with riders and teams. Read and reply here. Your email address stays private.</p>
+          <EmailNotifications />
           {selected && <p className={styles.notice}>This conversation is no longer on this page. Its listing may have been deleted or expired.</p>}
           {!threads.length && <p>No conversations yet. Open a listing and send a message to get started.</p>}
           <div className={styles.chatThreads}>{threads.map(thread => <button key={thread.id} type="button" onClick={() => { setSelectedSnapshot(thread); setSelected(thread.id); }}>

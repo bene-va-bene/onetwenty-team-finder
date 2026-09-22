@@ -39,12 +39,7 @@ export async function deliver(client: Admin, id?: string) {
   const config = mailConfig();
   const job = await serverRpc<MailJob | null>(client, "mail_claim", { p_id: id ?? null });
   if (!job) return null;
-  const transport = nodemailer.createTransport({
-    host: "smtp.strato.de", port: 465, secure: true,
-    auth: { user: "teamfinder@rad-race.com", pass: config.pass },
-    connectionTimeout: 5000, greetingTimeout: 5000, socketTimeout: 10000, dnsTimeout: 5000,
-    disableFileAccess: true, disableUrlAccess: true, logger: false, debug: false,
-  });
+  const transport = mailTransport(config.pass);
   let state: "sent" | "failed" | "uncertain" = "uncertain";
   try {
     const result = await transport.sendMail({
@@ -64,5 +59,61 @@ export async function deliver(client: Admin, id?: string) {
   } finally { transport.close(); }
   // If this write fails, sending becomes uncertain in the daily worker, not a duplicate send.
   await serverRpc(client, "mail_finish", { p_id: job.id, p_state: state });
+  return state;
+}
+
+function mailTransport(pass: string) {
+  return nodemailer.createTransport({
+    host: "smtp.strato.de", port: 465, secure: true,
+    auth: { user: "teamfinder@rad-race.com", pass: pass },
+    connectionTimeout: 5000, greetingTimeout: 5000, socketTimeout: 10000, dnsTimeout: 5000,
+    disableFileAccess: true, disableUrlAccess: true, logger: false, debug: false,
+  });
+}
+
+export function chatNotificationText(origin: string) {
+  return {
+    subject: "You’ve got a new message. | RAD RACE Team Finder",
+    text: `YOUR CREW IS CALLING.
+
+You have new unread messages in the RAD RACE ONETWENTY Team Finder.
+
+OPEN MESSAGES
+${origin}/?messages=1
+
+Read and reply in the Team Finder. You may need to sign in first. Your conversations and email address stay private.
+
+You can turn off these notifications in Messages. Please don’t reply to this email — replies to this address are automatically discarded.
+
+much love
+RAD RACE`,
+  };
+}
+export async function deliverChatNotification(client: Admin) {
+  const config = mailConfig();
+  const job = await serverRpc<{ id: string; to: string } | null>(client, "chat_email_claim");
+  if (!job) return null;
+  if (!await serverRpc<boolean>(client, "chat_email_ready", { p_id: job.id })) {
+    await serverRpc(client, "chat_email_finish", { p_id: job.id, p_state: "skipped" });
+    return "skipped";
+  }
+  const transport = mailTransport(config.pass);
+  let state: "sent" | "failed" | "uncertain" = "uncertain";
+  try {
+    const result = await transport.sendMail({
+      from: { name: "RAD RACE Team Finder", address: "teamfinder@rad-race.com" },
+      to: { name: "", address: job.to },
+      messageId: `<chat-${job.id}@rad-race.com>`,
+      ...chatNotificationText(config.origin),
+      headers: { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "All" },
+    });
+    state = result.accepted.length === 1 ? "sent" : "failed";
+  } catch (error) {
+    const e = error as { responseCode?: number; command?: string; code?: string };
+    const rejected = (e.responseCode !== undefined && e.responseCode >= 400) ||
+      ["EAUTH", "EDNS"].includes(e.code ?? "") || ["CONN", "EHLO", "HELO", "AUTH", "MAIL FROM", "RCPT TO"].includes(e.command ?? "");
+    state = rejected ? "failed" : "uncertain";
+  } finally { transport.close(); }
+  await serverRpc(client, "chat_email_finish", { p_id: job.id, p_state: state });
   return state;
 }
