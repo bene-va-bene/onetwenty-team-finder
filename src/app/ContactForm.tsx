@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { message, rpc } from "@/lib/listings";
 import styles from "./page.module.css";
 
@@ -12,6 +12,25 @@ export default function ContactForm({ listingId, threadId, onBusy, onSent }: {
   const [error, setError] = useState("");
   const request = useRef<{ id: string; body: string; name: string } | null>(null);
   const sending = useRef(false);
+  const openConversation = useRef(onSent);
+  const [lookup, setLookup] = useState<{ listing: string; error: string } | null>(null);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => { openConversation.current = onSent; }, [onSent]);
+  useEffect(() => {
+    if (!listingId || threadId) return;
+    let active = true;
+    rpc<string | null>("find_existing_chat", { p_listing: listingId }).then(id => {
+      if (!active) return;
+      if (id) openConversation.current(id);
+      else setLookup({ listing: listingId, error: "" });
+    }).catch(error => { if (active) setLookup({ listing: listingId, error: message(error) }); });
+    return () => { active = false; };
+  }, [listingId, threadId, retry]);
+  if (!threadId && listingId && (lookup?.listing !== listingId || lookup.error)) {
+    return lookup?.listing === listingId && lookup.error ? <div className={styles.notice} role="alert">
+      {lookup.error} <button type="button" onClick={() => { setLookup(null); setRetry(n => n + 1); }}>TRY AGAIN</button>
+    </div> : <p className={styles.fieldHint} role="status">Opening conversation…</p>;
+  }
   return <form className={threadId ? styles.chatComposer : undefined} onSubmit={async event => {
     event.preventDefault(); if (sending.current) return;
     sending.current = true; setBusy(true); onBusy(true); setError("");
