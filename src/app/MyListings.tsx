@@ -37,12 +37,14 @@ export default function MyListings({
   onEdit,
   onCreate,
   onOpen,
+  onBrowseTeams,
   onChanged,
 }: {
   onClose: () => void;
   onEdit: (listing: Listing) => void;
   onCreate: (type: "rider" | "team") => void;
   onOpen: (id: string) => void;
+  onBrowseTeams: () => void;
   onChanged: () => void;
 }) {
   const [rows, setRows] = useState<Listing[]>([]);
@@ -169,32 +171,61 @@ export default function MyListings({
                 const membership = home.membership;
                 return (
                   <>
-                    <div className={styles.photoActions}>
-                      <button
-                        type="button"
-                        className={styles.photoButton}
-                        disabled={busy}
-                        onClick={() => (rider ? onEdit(rider) : onCreate("rider"))}
-                      >
-                        {rider ? "EDIT MY RIDER PROFILE" : "CREATE MY RIDER PROFILE"}
-                      </button>
+                    {!rider ? (
+                      <section className={styles.nextStepCard}>
+                        <p className={styles.formEyebrow}>STEP 1</p>
+                        <h3>CREATE YOUR RIDER PROFILE</h3>
+                        <p>Every person in the Paddock starts as a rider. After that you can join a team or build your own.</p>
+                        <button
+                          type="button"
+                          className={styles.formSubmit}
+                          disabled={busy}
+                          onClick={() => onCreate("rider")}
+                        >
+                          CREATE RIDER PROFILE <span aria-hidden="true">→</span>
+                        </button>
+                      </section>
+                    ) : !ownedTeam && !membership && rider.status === "active" ? (
+                      <section className={styles.nextStepCard}>
+                        <p className={styles.formEyebrow}>YOUR NEXT STEP</p>
+                        <h3>JOIN A TEAM OR BUILD YOUR OWN.</h3>
+                        <p>Your rider profile is ready. Now choose what you want to do.</p>
+                        <div className={styles.nextStepChoices}>
+                          <button
+                            type="button"
+                            className={styles.nextStepChoice}
+                            disabled={busy}
+                            onClick={onBrowseTeams}
+                          >
+                            <strong>FIND A TEAM</strong>
+                            <span>Browse teams that are looking for riders.</span>
+                            <b aria-hidden="true">→</b>
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.nextStepChoice}
+                            disabled={busy}
+                            onClick={() => onCreate("team")}
+                          >
+                            <strong>BUILD MY TEAM</strong>
+                            <span>Create your team, then add riders through join requests.</span>
+                            <b aria-hidden="true">→</b>
+                          </button>
+                        </div>
+                      </section>
+                    ) : null}
 
-                      {rider && !ownedTeam && (
+                    {rider && (
+                      <div className={styles.photoActions}>
                         <button
                           type="button"
                           className={styles.photoButton}
-                          disabled={busy || rider.status !== "active" || Boolean(membership)}
-                          onClick={() => onCreate("team")}
+                          disabled={busy}
+                          onClick={() => onEdit(rider)}
                         >
-                          CREATE A TEAM
+                          EDIT MY RIDER PROFILE
                         </button>
-                      )}
-                    </div>
-
-                    {!rider && (
-                      <p className={styles.fieldHint}>
-                        Create your rider profile first. You need it before you can join or create a team.
-                      </p>
+                      </div>
                     )}
 
                     {rider && !ownedTeam && rider.status !== "active" && (
