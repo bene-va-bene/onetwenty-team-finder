@@ -605,18 +605,20 @@ export default function CreateListingForm({
               {validationErrors.publicationConsent && <p className={styles.fieldError}>{validationErrors.publicationConsent}</p>}
 
               {imagePreview && (
-  <label key={imagePreview} className={validationErrors.photoConsent ? styles.invalidChoice : undefined}>
-    <input
-      type="checkbox"
-      name="photoConsent"
-      onChange={() => clearValidationError("photoConsent")}
-    />
-    <span>
-      I confirm that I may use this photo and that it can be shown
-      publicly in the RAD RACE ONETWENTY Paddock.
-    </span>
-  </label>
-  {validationErrors.photoConsent && <p className={styles.fieldError}>{validationErrors.photoConsent}</p>}
+  <>
+    <label key={imagePreview} className={validationErrors.photoConsent ? styles.invalidChoice : undefined}>
+      <input
+        type="checkbox"
+        name="photoConsent"
+        onChange={() => clearValidationError("photoConsent")}
+      />
+      <span>
+        I confirm that I may use this photo and that it can be shown
+        publicly in the RAD RACE ONETWENTY Paddock.
+      </span>
+    </label>
+    {validationErrors.photoConsent && <p className={styles.fieldError}>{validationErrors.photoConsent}</p>}
+  </>
 )}
             </div>
           </fieldset>
