@@ -167,3 +167,19 @@ test('database migration derives team city, languages and composition from accep
   assert.ok(core.includes('You are already in a team. Leave it before creating your own.'));
   assert.ok(core.includes('paddock_abandon_team'));
 });
+
+
+test('beta feedback makes missing fields and team building explicit', () => {
+  const formSource = readFileSync(new URL('../src/app/CreateListingForm.tsx', import.meta.url), 'utf8');
+  const manageSource = readFileSync(new URL('../src/app/MyListings.tsx', import.meta.url), 'utf8');
+  const homeSource = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+
+  assert.ok(formSource.includes('ALMOST THERE.'));
+  assert.ok(formSource.includes('Please complete the highlighted fields before you continue.'));
+  assert.ok(formSource.includes('validationErrors.riderGender'));
+  assert.ok(formSource.includes('validationErrors.publicationConsent'));
+  assert.ok(manageSource.includes('JOIN A TEAM OR BUILD YOUR OWN.'));
+  assert.ok(manageSource.includes('BUILD MY TEAM'));
+  assert.ok(manageSource.includes('FIND A TEAM'));
+  assert.ok(homeSource.includes('Then find a team, join one, or build your own.'));
+});
