@@ -30,13 +30,12 @@ export default function CreateListingForm({
   kind,
 }: CreateListingFormProps) {
   const listingType = initial?.type ?? kind;
-  const [riderLooking, setRiderLooking] = useState(initial?.looking ?? false);
   const [riderGender, setRiderGender] = useState(initial?.riderGender ?? "");
-  const [teamCategory, setTeamCategory] = useState(initial?.type === "team" ? initial.categories[0] : "Mixed");
-  const [preferredCategories, setPreferredCategories] = useState<string[]>(initial?.type === "rider" ? initial.categories : []);
-  const [seeking, setSeeking] = useState(initial?.looking ? initial.seeking ?? "" : "");
-  const looking = listingType === "team" ? Boolean(seeking) : riderLooking;
-  const availableCategories = riderGender === "Woman" ? ["Women", "Mixed"] : riderGender === "Man" ? ["Men", "Mixed"] : [];
+  const [riderPreference, setRiderPreference] = useState(
+    initial?.type === "rider" ? (initial.categories.includes("Mixed") ? "Mixed" : "Not mixed") : "",
+  );
+  const [seeking, setSeeking] = useState(initial?.type === "team" ? initial.seeking ?? "" : "");
+  const looking = listingType === "team" ? Boolean(seeking) : true;
   const [selectedVibes, setSelectedVibes] = useState<string[]>(initial?.vibes ?? []);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [photoChanged, setPhotoChanged] = useState(false);
@@ -71,15 +70,29 @@ export default function CreateListingForm({
     setSaving(true); setSaveError("");
     let stagedPhoto: string | null = null;
     try {
+      const riderCategory =
+        riderPreference === "Mixed"
+          ? "Mixed"
+          : riderGender === "Woman"
+            ? "Women"
+            : riderGender === "Man"
+              ? "Men"
+              : "";
       const input: ListingInput = {
-        type: listingType, looking, name: preview.displayName, region: preview.region,
-        description: preview.description, languages: preview.languages,
+        type: listingType,
+        looking,
+        name: preview.displayName,
+        region: listingType === "rider" ? preview.region : "",
+        description: preview.description,
+        languages: listingType === "rider" ? preview.languages : "",
         age: listingType === "rider" && preview.age ? Number(preview.age) : null,
         ridersNeeded: listingType === "team" && looking && preview.ridersNeeded ? Number(preview.ridersNeeded) : null,
         riderGender: listingType === "rider" ? riderGender || null : null,
         seeking: listingType === "team" ? seeking || null : null,
-        categories: listingType === "rider" ? preferredCategories : [teamCategory],
-        vibes: selectedVibes, strava: preview.strava, instagram: preview.instagram,
+        categories: listingType === "rider" && riderCategory ? [riderCategory] : [],
+        vibes: selectedVibes,
+        strava: preview.strava,
+        instagram: preview.instagram,
       };
       const id = savedRecord.current?.id ?? (newId.current ??= crypto.randomUUID());
       const oldPath = savedRecord.current?.image_path ?? null;
@@ -140,17 +153,23 @@ export default function CreateListingForm({
     }
 
     const data = new FormData(event.currentTarget);
-    const fields = ["displayName", "region", "age", "languages", "ridersNeeded", "description", "strava", "instagram"];
+    const fields = listingType === "rider"
+      ? ["displayName", "region", "age", "languages", "description", "strava", "instagram"]
+      : ["displayName", "ridersNeeded", "description", "strava", "instagram"];
     const publicFields: Record<string, string> = {};
     for (const field of fields) {
       publicFields[field] = String(data.get(field) ?? "").trim();
     }
-    for (const field of ["displayName"]) {
+    for (const field of listingType === "rider" ? ["displayName", "region", "languages"] : ["displayName"]) {
       const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement | HTMLTextAreaElement;
       input.setCustomValidity(publicFields[field] ? "" : "Please complete this field.");
       if (!input.reportValidity()) return;
     }
-    if (listingType === "team") delete publicFields.age;
+    if (listingType === "team") {
+      delete publicFields.age;
+      delete publicFields.region;
+      delete publicFields.languages;
+    }
     // Only permit ordinary web links in the rendered preview.
     for (const field of ["strava", "instagram"]) {
       const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement;
@@ -179,7 +198,11 @@ export default function CreateListingForm({
           <div>
             <p className={styles.formEyebrow}>ONETWENTY 2027</p>
             <h2 id="create-listing-title" ref={headingRef} tabIndex={-1}>
-              {preview ? "YOUR PROFILE PREVIEW" : initial ? "EDIT YOUR PROFILE" : "CREATE YOUR PROFILE"}
+              {preview
+                ? listingType === "team" ? "YOUR TEAM PREVIEW" : "YOUR RIDER PREVIEW"
+                : initial
+                  ? listingType === "team" ? "EDIT YOUR TEAM" : "EDIT YOUR RIDER PROFILE"
+                  : listingType === "team" ? "CREATE YOUR TEAM" : "CREATE YOUR RIDER PROFILE"}
             </h2>
           </div>
 
@@ -212,14 +235,21 @@ export default function CreateListingForm({
               <h3 style={{ fontSize: "clamp(2rem, 7vw, 3.5rem)", lineHeight: 1.1 }}>
                 {preview.displayName}
               </h3>
-              <p className={styles.profileRegion}>{preview.region}</p>
-              <div className={styles.profileSection}>
-                <p className={styles.profileLabel}>{listingType === "rider" ? "OPEN TO TEAM CATEGORIES" : "TEAM CATEGORY"}</p>
-                <div className={styles.categoryTags}>
-                  {(listingType === "rider" ? preferredCategories : [teamCategory]).map((category) => <span key={category}>{category}</span>)}
-                  {(riderGender || (listingType === "team" && looking)) && <span>{listingType === "rider" ? riderGender : `Seeking: ${seeking}`}</span>}
+              {listingType === "rider" && <p className={styles.profileRegion}>{preview.region}</p>}
+              {listingType === "rider" ? (
+                <div className={styles.profileSection}>
+                  <p className={styles.profileLabel}>RIDER</p>
+                  <div className={styles.categoryTags}>
+                    <span>I am: {riderGender}</span>
+                    <span>Looking for: {riderPreference === "Mixed" ? "Mixed Team" : riderGender === "Woman" ? "Women’s Team" : "Men’s Team"}</span>
+                  </div>
                 </div>
-              </div>
+              ) : looking ? (
+                <div className={styles.profileSection}>
+                  <p className={styles.profileLabel}>LOOKING FOR</p>
+                  <div className={styles.categoryTags}><span>{seeking}</span></div>
+                </div>
+              ) : null}
               <div className={styles.profileSection}>
                 <p className={styles.profileLabel}>ABOUT</p>
                 <p className={styles.profileDescription} style={{ whiteSpace: "pre-wrap" }}>
@@ -233,7 +263,7 @@ export default function CreateListingForm({
                 </div>
               </div>
               <dl className={styles.profileSection} style={{ display: "grid", gap: 16 }}>
-                <div><dt>Languages</dt><dd>{preview.languages}</dd></div>
+                {listingType === "rider" && <div><dt>Languages</dt><dd>{preview.languages}</dd></div>}
                 {listingType === "rider" && preview.age && <div><dt>Age</dt><dd>{preview.age}</dd></div>}
                 {listingType === "team" && looking && preview.ridersNeeded && (
                   <div><dt>Riders needed</dt><dd>{preview.ridersNeeded === "5" ? "5+" : preview.ridersNeeded}</dd></div>
@@ -248,7 +278,7 @@ export default function CreateListingForm({
             </article>
             <div className={styles.formSubmitArea} style={{ marginTop: 32 }}>
               {saveError && <p role="alert" className={styles.notice}>{saveError}</p>}
-              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : "PUBLISH PROFILE"} <span aria-hidden="true">↗</span></button>
+              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : listingType === "team" ? "PUBLISH TEAM" : "PUBLISH RIDER PROFILE"} <span aria-hidden="true">↗</span></button>
               <button className={styles.profileButton} type="button" disabled={saving} onClick={() => setPreview(null)}>
                 BACK TO EDIT <span aria-hidden="true">←</span>
               </button>
@@ -263,58 +293,50 @@ export default function CreateListingForm({
         }} style={preview ? { display: "none" } : undefined}>
           <fieldset className={styles.formSection}>
             <legend>{listingType === "rider" ? "YOUR RIDER PROFILE" : "YOUR TEAM"}</legend>
-            <p className={styles.fieldHint}>{listingType === "rider" ? "This is your one rider profile. Teams link to it, so you never need to create yourself again." : "Show your crew and optionally say who you’re looking for. Your team can have any number of members. Riders can always contact you or request to join; you manage requests as captain."}</p>
-            {listingType === "rider" && <div className={styles.formTypeOptions}>
-              <label><input type="radio" name="looking" checked={!riderLooking} onChange={() => setRiderLooking(false)} /><span><strong>JUST HERE TO RIDE</strong>Show my profile. I’m not looking for a team.</span></label>
-              <label><input type="radio" name="looking" checked={riderLooking} onChange={() => setRiderLooking(true)} /><span><strong>LOOKING FOR A TEAM</strong>Show that I’m looking for a team.</span></label>
-            </div>}
+            <p className={styles.fieldHint}>{listingType === "rider" ? "This is your rider profile. You need it before you can join or create a team." : "Your team is built from rider profiles. City, languages and team composition update automatically from the current members."}</p>
           </fieldset>
 
           <fieldset className={styles.formSection}>
-            <legend>TEAM CATEGORY &amp; RIDERS</legend>
+            <legend>{listingType === "rider" ? "YOU & YOUR TEAM SEARCH" : "LOOKING FOR"}</legend>
             {listingType === "rider" ? (
               <>
-                <div className={styles.fieldGrid}>
-                  <label><span>RACE CLASSIFICATION (OPTIONAL)</span>
-                    <select value={riderGender} onChange={(event) => {
-                      const value = event.target.value;
-                      setRiderGender(value);
-                      setPreferredCategories((current) => current.filter((category) => category === "Mixed" || category === (value === "Woman" ? "Women" : "Men")));
-                    }}>
-                      <option value="">Please select</option><option>Woman</option><option>Man</option>
-                    </select>
-                  </label>
-                </div>
-                <p className={styles.fieldHint} style={{ marginTop: 20 }}>Optional: which team categories would work for you?</p>
+                <p className={styles.profileLabel}>I AM</p>
                 <div className={styles.formVibes}>
-                  {availableCategories.map((category) => (
-                    <label key={category}><input type="checkbox" checked={preferredCategories.includes(category)} onChange={() => setPreferredCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])} /><span>{category}</span></label>
+                  {["Man", "Woman"].map((value) => (
+                    <label key={value}>
+                      <input type="radio" name="riderGender" required checked={riderGender === value} onChange={() => setRiderGender(value)} />
+                      <span>{value}</span>
+                    </label>
                   ))}
                 </div>
-
+                <p className={styles.profileLabel} style={{ marginTop: 24 }}>LOOKING FOR A TEAM</p>
+                <div className={styles.formVibes}>
+                  {["Mixed", "Not mixed"].map((value) => (
+                    <label key={value}>
+                      <input type="radio" name="riderPreference" required checked={riderPreference === value} onChange={() => setRiderPreference(value)} />
+                      <span>{value}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className={styles.fieldHint} style={{ marginTop: 20 }}>
+                  Not mixed means a Men’s Team for men and a Women’s Team for women. Mixed means you’re looking for a Mixed Team.
+                </p>
               </>
             ) : (
-              <div className={styles.fieldGrid}>
-                <label><span>TEAM CATEGORY</span>
-                  <select value={teamCategory} onChange={(event) => {
-                    const category = event.target.value;
-                    setTeamCategory(category);
-                    if (seeking && category !== "Mixed") setSeeking(category);
-                  }}>
-                    <option>Men</option><option>Women</option><option>Mixed</option>
-                  </select>
-                </label>
-                <label><span>LOOKING FOR <em>OPTIONAL</em></span>
+              <>
+                <label className={styles.fullField}>
+                  <span>LOOKING FOR <em>OPTIONAL</em></span>
                   <select value={seeking} onChange={(event) => setSeeking(event.target.value)}>
-                    <option value="">No looking-for status</option>
-                    {teamCategory === "Mixed" ? <><option>Anyone</option><option>Women</option><option>Men</option></> : <option>{teamCategory}</option>}
+                    <option value="">Not looking right now</option>
+                    <option>Men</option>
+                    <option>Women</option>
+                    <option>Mixed</option>
                   </select>
                 </label>
-              </div>
-            )}
-            <p className={styles.fieldHint} style={{ marginTop: 20 }}>These selections appear on your public profile. The Paddock helps you connect; it does not register you for the race.</p>
-            {(listingType === "team" ? teamCategory === "Mixed" : preferredCategories.includes("Mixed")) && (
-              <p className={styles.fieldHint}>Mixed road-race timing requires at least three finishers, including a woman and a man. <a href="https://www.808project.de/one-twenty/ausschreibung" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>Read the race rules</a>.</p>
+                <p className={styles.fieldHint} style={{ marginTop: 20 }}>
+                  Your team composition is not set here. It is calculated automatically from the riders in your team.
+                </p>
+              </>
             )}
           </fieldset>
 
@@ -336,7 +358,7 @@ export default function CreateListingForm({
 
             <div className={styles.fieldGrid}>
               <label>
-                <span>DISPLAY NAME</span>
+                <span>{listingType === "team" ? "TEAM NAME" : "DISPLAY NAME"}</span>
                 <input
                   type="text"
                   name="displayName" required
@@ -348,16 +370,17 @@ export default function CreateListingForm({
                 />
               </label>
 
-              <label>
+              {listingType === "rider" && <label>
                 <span>CITY / REGION</span>
                 <input
                   type="text"
                   name="region"
+                  required
                   defaultValue={initial?.region}
                   maxLength={100}
                   placeholder="e.g. Hamburg"
                 />
-              </label>
+              </label>}
 
               {listingType === "rider" && <label>
                 <span>AGE <em>OPTIONAL</em></span>
@@ -372,16 +395,17 @@ export default function CreateListingForm({
                 />
               </label>}
 
-              <label>
+              {listingType === "rider" && <label>
                 <span>LANGUAGES</span>
                 <input
                   type="text"
                   name="languages"
+                  required
                   defaultValue={initial?.languages}
                   maxLength={100}
                   placeholder="e.g. EN, DE"
                 />
-              </label>
+              </label>}
 
               {listingType === "team" && looking && (
                 <label>
@@ -428,7 +452,7 @@ export default function CreateListingForm({
           <fieldset className={styles.formSection}>
             <legend>
               <span>05</span>
-              TELL THEM ABOUT YOU
+              {listingType === "team" ? "DESCRIBE YOUR TEAM" : "TELL US ABOUT YOU"}
             </legend>
 
             <label className={styles.fullField}>
@@ -438,7 +462,7 @@ export default function CreateListingForm({
                 defaultValue={initial?.description}
                 rows={6}
                 maxLength={700}
-                placeholder="What should a potential team or rider know about you?"
+                placeholder={listingType === "team" ? "Tell us what your team is about." : "What should people know about you?"}
               />
             </label>
 

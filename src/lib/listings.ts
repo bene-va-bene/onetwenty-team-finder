@@ -1,41 +1,87 @@
 import { browserSupabase } from "./supabase";
 
 export const vibes = ["Just for the views", "Good times, good pace", "Sporty but social", "Let’s shred", "Race to win"];
+
 export type Listing = {
-  id: string; looking: boolean; type: "rider" | "team"; name: string; region: string;
-  description: string; vibes: string[]; categories: string[];
-  riderGender: string | null; seeking: string | null; age: number | null;
-  languages: string; ridersNeeded: number | null; strava: string; instagram: string;
-  image_path: string | null; status: "draft" | "active" | "closed";
-  published_at: string | null; expires_at: string | null; revision: number;
-  created_at: string; updated_at: string;
+  id: string;
+  looking: boolean;
+  type: "rider" | "team";
+  name: string;
+  region: string;
+  description: string;
+  vibes: string[];
+  categories: string[];
+  riderGender: string | null;
+  seeking: string | null;
+  age: number | null;
+  languages: string;
+  ridersNeeded: number | null;
+  strava: string;
+  instagram: string;
+  image_path: string | null;
+  status: "draft" | "active" | "closed";
+  published_at: string | null;
+  expires_at: string | null;
+  revision: number;
+  created_at: string;
+  updated_at: string;
 };
-export type ListingInput = Pick<Listing, "type" | "name" | "region" | "description" | "vibes" | "categories" | "riderGender" | "seeking" | "age" | "languages" | "ridersNeeded" | "strava" | "instagram" | "looking">;
+
+export type ListingInput = Pick<
+  Listing,
+  "type" | "name" | "region" | "description" | "vibes" | "categories" | "riderGender" | "seeking" | "age" | "languages" | "ridersNeeded" | "strava" | "instagram" | "looking"
+>;
+
+export function riderTeamPreference(listing: Pick<Listing, "type" | "looking" | "categories" | "riderGender">) {
+  if (listing.type !== "rider" || !listing.looking) return null;
+  if (listing.categories.includes("Mixed")) return "Mixed Team";
+  if (listing.riderGender === "Woman") return "Women’s Team";
+  if (listing.riderGender === "Man") return "Men’s Team";
+  return null;
+}
+
 export function meta(listing: Listing) {
   if (listing.type === "team") {
-    if (!listing.looking || !listing.seeking) return "Team";
-    if (!listing.ridersNeeded) return "Looking for riders";
-    return `Looking for ${listing.ridersNeeded === 5 ? "5+" : listing.ridersNeeded} rider${listing.ridersNeeded === 1 ? "" : "s"}`;
+    return listing.looking && listing.seeking ? `Team · looking for ${listing.seeking}` : "Team";
   }
-  return listing.looking ? "Looking for a team" : "Rider · not looking for a team";
+  const preference = riderTeamPreference(listing);
+  return preference ? `Looking for a ${preference}` : "Rider";
 }
+
 export function photoUrl(listing: Pick<Listing, "id" | "image_path" | "revision">, thumb = false) {
   return listing.image_path ? `/api/photos?id=${listing.id}&v=${listing.revision}${thumb ? "&size=thumb" : ""}` : "/rider-placeholder.svg";
 }
+
 export function dateLabel(value: string | null) {
   return value ? new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Not published";
 }
+
 export function message(error: unknown) {
-  return error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : "Something went wrong. Please try again.";
+  return error instanceof Error
+    ? error.message
+    : typeof error === "object" && error && "message" in error
+      ? String(error.message)
+      : "Something went wrong. Please try again.";
 }
+
 export async function rpc<T>(name: string, args = {}): Promise<T> {
   const { data, error } = await browserSupabase().rpc(name, args);
-  if (error) throw new Error(["23514", "23502", "22P02"].includes(error.code) ? "Please check the required fields, category, age and social profile links." : error.message);
+  if (error) {
+    throw new Error(
+      ["23514", "23502", "22P02"].includes(error.code)
+        ? "Please check the required fields, category, age and social profile links."
+        : error.message,
+    );
+  }
   return data as T;
 }
+
 export async function removeListing(listing: Listing) {
-  // Close first: a failed storage request must never leave a public listing half deleted.
-  const closed = await rpc<Listing>("set_listing_status", { p_id: listing.id, p_status: "closed", p_revision: listing.revision });
+  const closed = await rpc<Listing>("set_listing_status", {
+    p_id: listing.id,
+    p_status: "closed",
+    p_revision: listing.revision,
+  });
   const storage = browserSupabase().storage.from("listing-photos");
   while (true) {
     const { data, error } = await storage.list(listing.id, { limit: 100 });
