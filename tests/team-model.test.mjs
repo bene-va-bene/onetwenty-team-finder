@@ -203,3 +203,10 @@ test('team location is shown as BASED IN and stays derived from rider data', () 
   assert.ok(projections.includes('group by key'));
   assert.ok(projections.includes('order by frequency desc,lower(label)'));
 });
+
+
+test('publish action uses a platform neutral icon instead of an emoji arrow', () => {
+  const source = readFileSync(new URL('../src/app/CreateListingForm.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('className={styles.publishArrow}'));
+  assert.ok(!source.includes('>↗<'));
+});
