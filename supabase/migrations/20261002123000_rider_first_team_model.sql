@@ -647,6 +647,8 @@ begin
     and m.rider_id = p_new_captain
     and m.state = 'accepted'
     and r.type = 'rider'
+    and r.status = 'active'
+    and r.expires_at > now()
   for update of r;
 
   if not found then raise exception 'Choose a current team member as the new captain.'; end if;
