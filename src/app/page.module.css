@@ -1374,9 +1374,13 @@
   box-shadow: inset 0 0 0 1px #b52412;
 }
 
-.formVibes[aria-invalid="true"] label,
-.invalidChoice {
+.formVibes[aria-invalid="true"] label {
   border-color: #b52412;
+}
+
+.invalidChoice {
+  outline: 2px solid #b52412;
+  outline-offset: 4px;
 }
 
 .nextStepCard {
