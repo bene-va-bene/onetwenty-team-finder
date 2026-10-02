@@ -1090,6 +1090,14 @@
   font-weight: 700;
 }
 
+.optionalLabel {
+  margin-left: 6px;
+  color: #555;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .vibeRequirement {
   margin-top: 12px;
   color: #555;

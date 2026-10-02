@@ -128,10 +128,13 @@ test('team form uses team language and derives member data instead of asking twi
   assert.ok(html.includes('TEAM NAME'));
   assert.ok(html.includes('DESCRIBE YOUR TEAM'));
   assert.ok(html.includes('Tell us what your team is about.'));
+  assert.ok(html.includes('WHO ARE YOU LOOKING FOR?'));
   assert.ok(html.includes('Not looking right now'));
-  assert.ok(html.includes('<option>Men</option>'));
-  assert.ok(html.includes('<option>Women</option>'));
-  assert.ok(html.includes('<option>Mixed</option>'));
+  assert.ok(html.includes('name="teamSeeking"'));
+  assert.ok(html.includes('value="Men"') || html.includes('>Men<'));
+  assert.ok(html.includes('value="Women"') || html.includes('>Women<'));
+  assert.ok(html.includes('value="Mixed"') || html.includes('>Mixed<'));
+  assert.ok(!html.includes('<select'));
   assert.ok(!html.includes('name="region"'));
   assert.ok(!html.includes('name="languages"'));
   assert.ok(!html.includes('TEAM CATEGORY'));
@@ -139,7 +142,8 @@ test('team form uses team language and derives member data instead of asking twi
 
 test('editing a team preserves its looking-for choice', () => {
   const html = form({ ...baseTeam, looking: true, seeking: 'Women', ridersNeeded: 2 });
-  assert.ok(html.includes('<option selected="">Women</option>'));
+  assert.ok(html.includes('name="teamSeeking"'));
+  assert.ok(html.includes('checked=""'));
   assert.ok(html.includes('name="ridersNeeded"'));
 });
 

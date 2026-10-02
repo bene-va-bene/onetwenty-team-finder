@@ -395,17 +395,29 @@ export default function CreateListingForm({
               </>
             ) : (
               <>
-                <label className={styles.fullField}>
-                  <span>LOOKING FOR <em>OPTIONAL</em></span>
-                  <select value={seeking} onChange={(event) => setSeeking(event.target.value)}>
-                    <option value="">Not looking right now</option>
-                    <option>Men</option>
-                    <option>Women</option>
-                    <option>Mixed</option>
-                  </select>
-                </label>
+                <p className={styles.profileLabel}>
+                  WHO ARE YOU LOOKING FOR? <em className={styles.optionalLabel}>OPTIONAL</em>
+                </p>
+                <div className={styles.formVibes}>
+                  {[
+                    { label: "Not looking right now", value: "" },
+                    { label: "Men", value: "Men" },
+                    { label: "Women", value: "Women" },
+                    { label: "Mixed", value: "Mixed" },
+                  ].map((option) => (
+                    <label key={option.label}>
+                      <input
+                        type="radio"
+                        name="teamSeeking"
+                        checked={seeking === option.value}
+                        onChange={() => setSeeking(option.value)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
                 <p className={styles.fieldHint} style={{ marginTop: 20 }}>
-                  Your team composition is not set here. It is calculated automatically from the riders in your team.
+                  This only says who you want to add. Your current team composition is calculated automatically from the riders in your team.
                 </p>
               </>
             )}
