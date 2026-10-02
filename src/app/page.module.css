@@ -1522,3 +1522,57 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+
+.discardOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(9, 9, 9, 0.82);
+}
+
+.discardDialog {
+  width: min(520px, 100%);
+  padding: 28px;
+  color: var(--black);
+  background: var(--white);
+  border: 3px solid var(--black);
+  box-shadow: 8px 8px 0 var(--signal);
+}
+
+.discardDialog h3 {
+  margin: 0 0 14px;
+  font-size: clamp(1.8rem, 6vw, 3rem);
+  font-weight: 950;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
+.discardDialog > p:not(.formEyebrow) {
+  margin: 0 0 24px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.discardActions {
+  display: grid;
+  gap: 10px;
+}
+
+.discardActions .photoButton {
+  width: 100%;
+  background: var(--white);
+}
+
+@media (max-width: 600px) {
+  .discardOverlay {
+    padding: 18px;
+  }
+
+  .discardDialog {
+    padding: 22px;
+  }
+}
