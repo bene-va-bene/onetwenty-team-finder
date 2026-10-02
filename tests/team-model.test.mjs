@@ -152,14 +152,18 @@ test('captain abandonment requires a deliberate handover in the management UI', 
 });
 
 test('database migration derives team city, languages and composition from accepted riders', () => {
-  const sql = readFileSync(
-    new URL('../supabase/migrations/20261002123000_rider_first_team_model.sql', import.meta.url),
+  const core = readFileSync(
+    new URL('../supabase/migrations/20261002105832_rider_first_team_core.sql', import.meta.url),
     'utf8',
   );
-  assert.ok(sql.includes('paddock_team_region'));
-  assert.ok(sql.includes('paddock_team_languages'));
-  assert.ok(sql.includes('paddock_team_category'));
-  assert.ok(sql.includes('Create your rider profile before creating a team.'));
-  assert.ok(sql.includes('You are already in a team. Leave it before creating your own.'));
-  assert.ok(sql.includes('paddock_abandon_team'));
+  const projections = readFileSync(
+    new URL('../supabase/migrations/20261002105859_rider_first_team_projections.sql', import.meta.url),
+    'utf8',
+  );
+  assert.ok(projections.includes('paddock_team_region'));
+  assert.ok(projections.includes('paddock_team_languages'));
+  assert.ok(projections.includes('paddock_team_category'));
+  assert.ok(core.includes('Create your rider profile before creating a team.'));
+  assert.ok(core.includes('You are already in a team. Leave it before creating your own.'));
+  assert.ok(core.includes('paddock_abandon_team'));
 });
