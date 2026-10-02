@@ -309,7 +309,12 @@ export default function CreateListingForm({
             </article>
             <div className={styles.formSubmitArea} style={{ marginTop: 32 }}>
               {saveError && <p role="alert" className={styles.notice}>{saveError}</p>}
-              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : listingType === "team" ? "PUBLISH TEAM" : "PUBLISH RIDER PROFILE"} <span aria-hidden="true">↗</span></button>
+              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>
+                {saving ? "SAVING…" : listingType === "team" ? "PUBLISH TEAM" : "PUBLISH RIDER PROFILE"}
+                <svg className={styles.publishArrow} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="M4 12L12 4M6 4h6v6" />
+                </svg>
+              </button>
               <button className={styles.profileButton} type="button" disabled={saving} onClick={() => setPreview(null)}>
                 BACK TO EDIT <span aria-hidden="true">←</span>
               </button>
