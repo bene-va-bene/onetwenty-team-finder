@@ -1329,3 +1329,141 @@
 
 /* ONETWENTY is longer than the previous headline; keep the full word visible. */
 .hero h1 { font-size: clamp(2.25rem, 9.5vw, 6.5rem); letter-spacing: -0.065em; }
+
+
+/* Beta feedback: make completion errors and the rider to team path impossible to miss. */
+.validationSummary {
+  margin: 0 0 28px;
+  padding: 18px;
+  border: 2px solid var(--signal);
+  background: #fff;
+  scroll-margin-top: 20px;
+}
+
+.validationSummary strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.validationSummary p {
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.validationSummary ul {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.fieldError {
+  margin: 2px 0 0;
+  color: #b52412;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.fieldGrid input[aria-invalid="true"],
+.fieldGrid select[aria-invalid="true"],
+.fullField input[aria-invalid="true"],
+.fullField textarea[aria-invalid="true"] {
+  border-color: #b52412;
+  box-shadow: inset 0 0 0 1px #b52412;
+}
+
+.formVibes[aria-invalid="true"] label,
+.invalidChoice {
+  border-color: #b52412;
+}
+
+.nextStepCard {
+  margin: 8px 0 32px;
+  padding: 24px;
+  border: 2px solid var(--black);
+  background: #fff;
+}
+
+.nextStepCard h3 {
+  margin: 0 0 10px;
+  font-size: clamp(1.6rem, 5vw, 2.5rem);
+  line-height: 1;
+}
+
+.nextStepCard > p:not(.formEyebrow) {
+  max-width: 620px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.nextStepChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nextStepChoice {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
+  min-height: 140px;
+  padding: 18px;
+  text-align: left;
+  color: var(--black);
+  font: inherit;
+  background: var(--white);
+  border: 2px solid var(--black);
+  cursor: pointer;
+}
+
+.nextStepChoice strong {
+  align-self: end;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.nextStepChoice span {
+  grid-column: 1 / -1;
+  align-self: start;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.nextStepChoice b {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: end;
+  font-size: 1.4rem;
+}
+
+.nextStepChoice:hover,
+.nextStepChoice:focus-visible {
+  background: var(--acid);
+}
+
+.nextStepChoice:focus-visible {
+  outline: 3px solid var(--signal);
+  outline-offset: 4px;
+}
+
+.nextStepChoice:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (max-width: 600px) {
+  .nextStepCard {
+    padding: 18px;
+  }
+
+  .nextStepChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .nextStepChoice {
+    min-height: 116px;
+  }
+}
