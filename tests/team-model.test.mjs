@@ -183,3 +183,19 @@ test('beta feedback makes missing fields and team building explicit', () => {
   assert.ok(manageSource.includes('FIND A TEAM'));
   assert.ok(homeSource.includes('Then find a team, join one, or build your own.'));
 });
+
+
+test('team location is shown as BASED IN and stays derived from rider data', () => {
+  const pageSource = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+  const formSource = readFileSync(new URL('../src/app/CreateListingForm.tsx', import.meta.url), 'utf8');
+  const projections = readFileSync(
+    new URL('../supabase/migrations/20261002105859_rider_first_team_projections.sql', import.meta.url),
+    'utf8',
+  );
+
+  assert.ok(pageSource.includes('BASED IN'));
+  assert.ok(pageSource.includes('selectedListing.region'));
+  assert.ok(!formSource.includes('name="teamRegion"'));
+  assert.ok(projections.includes('group by key'));
+  assert.ok(projections.includes('order by frequency desc,lower(label)'));
+});
