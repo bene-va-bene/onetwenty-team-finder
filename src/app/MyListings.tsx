@@ -104,7 +104,7 @@ export default function MyListings({
           "You’re about to abandon your team. There is no other member who can take over, so the team will be deleted.",
         )
       ) {
-        void act(() => rpc("paddock_abandon_team", { p_team: team.id, p_new_captain: null }));
+        void act(() => removeListing(team));
       }
       return;
     }
