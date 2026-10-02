@@ -518,7 +518,7 @@ setShowMessages(false);
           </div>
         </div>
 
-        {selectedListing.type === "team" ? <TeamPanel key={selectedListing.id} team={selectedListing} signedIn={Boolean(user)} onSignIn={() => signInForProfile(selectedListing.id)} onOpen={id => void openProfile(id)} onManage={() => { setSelectedListing(null); setShowManage(true); }} onBusy={setContactBusy} onChanged={() => { refreshUnread(); void reload(); }} /> : <RiderTeam key={selectedListing.id} riderId={selectedListing.id} onOpen={id => void openProfile(id)} />}
+        {selectedListing.type === "team" ? <TeamPanel key={selectedListing.id} team={selectedListing} signedIn={Boolean(user)} onSignIn={() => signInForProfile(selectedListing.id)} onOpen={id => void openProfile(id)} onManage={() => { setSelectedListing(null); setShowManage(true); }} onCreateRider={() => { setSelectedListing(null); setCreateType("rider"); setEditing(undefined); setShowCreateForm(true); }} onBusy={setContactBusy} onChanged={() => { refreshUnread(); void reload(); }} /> : <RiderTeam key={selectedListing.id} riderId={selectedListing.id} onOpen={id => void openProfile(id)} />}
         <div className={styles.profileSection}>
           <p className={styles.profileLabel}>ABOUT</p>
           <p className={styles.profileDescription}>
