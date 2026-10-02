@@ -48,6 +48,8 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
   const [showMessages, setShowMessages] = useState(false);
   const [chatId, setChatId] = useState<string>();
   const [unread, setUnread] = useState(0);
+  const [hasRiderProfile, setHasRiderProfile] = useState(false);
+  const [riderProfileChecked, setRiderProfileChecked] = useState(false);
   const [unreadRefresh, setUnreadRefresh] = useState(0);
   const refreshUnread = useCallback(() => setUnreadRefresh(n => n + 1), []);
   useEffect(() => {
@@ -55,8 +57,22 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
     let alive = true;
     async function load() {
       if (document.hidden) return;
-      try { const [count, updates] = await Promise.all([rpc<number>("chat_unread"), rpc<number>("paddock_badge")]); if (alive) { setUnread(count); setTeamUpdates(updates); } }
-      catch { /* Keep the last known count; Messages displays connection errors. */ }
+      try {
+        const [count, updates, home] = await Promise.all([
+          rpc<number>("chat_unread"),
+          rpc<number>("paddock_badge"),
+          rpc<{ rider: Listing | null }>("paddock_home"),
+        ]);
+        if (alive) {
+          setUnread(count);
+          setTeamUpdates(updates);
+          setHasRiderProfile(Boolean(home.rider));
+          setRiderProfileChecked(true);
+        }
+      }
+      catch {
+        /* Keep the last known account state; individual panels display connection errors. */
+      }
     }
     void load(); const timer = setInterval(() => void load(), 30000);
     window.addEventListener("focus", load);
@@ -135,7 +151,17 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
           window.history.replaceState(null, "", window.location.pathname + window.location.hash);
         }
       }
-      if (event === "SIGNED_OUT") { setShowManage(false); setShowMessages(false); setSelectedListing(null); setUnread(0); setTeamUpdates(0); setShowCreateForm(false); setEditing(undefined); }
+      if (event === "SIGNED_OUT") {
+        setShowManage(false);
+        setShowMessages(false);
+        setSelectedListing(null);
+        setUnread(0);
+        setTeamUpdates(0);
+        setHasRiderProfile(false);
+        setRiderProfileChecked(false);
+        setShowCreateForm(false);
+        setEditing(undefined);
+      }
     });
     client.auth.getSession().then(async ({ data, error }) => {
       if (error) setNotice("That sign-in link could not be used. Please request a new one.");
@@ -280,28 +306,30 @@ setShowMessages(false);
             Create your rider profile first. Then find a team, join one, or build your own. Every team in the Paddock is made from riders.
           </p>
 
-          <button
-  className={styles.createButton}
-  type="button"
-  disabled={authLoading || !isConfigured}
-  onClick={(event) => openCreate(event.currentTarget)}
->
-  JOIN THE PADDOCK
-  <svg
-    aria-hidden="true"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="square"
-    strokeLinejoin="miter"
-  >
-    <path d="M7 17L17 7" />
-    <path d="M8 7H17V16" />
-  </svg>
-  </button>
+          {(!user || (riderProfileChecked && !hasRiderProfile)) && (
+            <button
+              className={styles.createButton}
+              type="button"
+              disabled={authLoading || !isConfigured}
+              onClick={(event) => openCreate(event.currentTarget)}
+            >
+              JOIN THE PADDOCK
+              <svg
+                aria-hidden="true"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="square"
+                strokeLinejoin="miter"
+              >
+                <path d="M7 17L17 7" />
+                <path d="M8 7H17V16" />
+              </svg>
+            </button>
+          )}
         </div>
       </section>
 
@@ -455,7 +483,7 @@ setShowMessages(false);
       </section>
 
       {showCreateForm && (
-  <CreateListingForm kind={createType} initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { const savedType = editing?.type ?? createType; setShowCreateForm(false); setEditing(undefined); setShowManage(true); setNotice(savedType === "rider" ? "Your rider profile is online. Choose your next step in My Paddock." : "Your team is online. Build your crew from rider profiles."); void reload(); }} />
+  <CreateListingForm kind={createType} initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { const savedType = editing?.type ?? createType; if (savedType === "rider") { setHasRiderProfile(true); setRiderProfileChecked(true); } setShowCreateForm(false); setEditing(undefined); setShowManage(true); setNotice(savedType === "rider" ? "Your rider profile is online. Choose your next step in My Paddock." : "Your team is online. Build your crew from rider profiles."); void reload(); }} />
 )}
 {showMessages && user && <Messages initialId={chatId} onClose={() => { setShowMessages(false); refreshUnread(); }} onUnreadChanged={refreshUnread} />}
 {showSignIn && <SignIn onClose={() => setShowSignIn(false)} />}
