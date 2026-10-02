@@ -1471,3 +1471,35 @@
     min-height: 116px;
   }
 }
+
+
+/* Team locations are derived from accepted rider profiles. */
+.regionLabel {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--black);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.profileBasedIn {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.profileBasedIn span {
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+}
+
+.profileBasedIn strong {
+  color: var(--signal);
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
