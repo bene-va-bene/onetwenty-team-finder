@@ -390,7 +390,7 @@ export default function CreateListingForm({
                 </div>
                 {validationErrors.riderPreference && <p className={styles.fieldError}>{validationErrors.riderPreference}</p>}
                 <p className={styles.fieldHint} style={{ marginTop: 20 }}>
-                  Not mixed means a Men’s Team for men and a Women’s Team for women. Mixed means you’re looking for a Mixed Team.
+                  Not mixed means a Men’s Team for men and a Women’s Team for women. Mixed means you’re looking for a Mixed Team. This is only your current preference. After publishing, you can still build your own team.
                 </p>
               </>
             ) : (
