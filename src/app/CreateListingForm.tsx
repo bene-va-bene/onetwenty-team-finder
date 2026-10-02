@@ -198,7 +198,11 @@ export default function CreateListingForm({
           <div>
             <p className={styles.formEyebrow}>ONETWENTY 2027</p>
             <h2 id="create-listing-title" ref={headingRef} tabIndex={-1}>
-              {preview ? "YOUR PROFILE PREVIEW" : initial ? "EDIT YOUR PROFILE" : "CREATE YOUR PROFILE"}
+              {preview
+                ? listingType === "team" ? "YOUR TEAM PREVIEW" : "YOUR RIDER PREVIEW"
+                : initial
+                  ? listingType === "team" ? "EDIT YOUR TEAM" : "EDIT YOUR RIDER PROFILE"
+                  : listingType === "team" ? "CREATE YOUR TEAM" : "CREATE YOUR RIDER PROFILE"}
             </h2>
           </div>
 
@@ -274,7 +278,7 @@ export default function CreateListingForm({
             </article>
             <div className={styles.formSubmitArea} style={{ marginTop: 32 }}>
               {saveError && <p role="alert" className={styles.notice}>{saveError}</p>}
-              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : "PUBLISH PROFILE"} <span aria-hidden="true">↗</span></button>
+              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : listingType === "team" ? "PUBLISH TEAM" : "PUBLISH RIDER PROFILE"} <span aria-hidden="true">↗</span></button>
               <button className={styles.profileButton} type="button" disabled={saving} onClick={() => setPreview(null)}>
                 BACK TO EDIT <span aria-hidden="true">←</span>
               </button>
