@@ -479,6 +479,12 @@ begin
   end if;
   if r.expires_at <= now() then raise exception 'Your rider profile has expired.'; end if;
   if r.status <> 'active' then raise exception 'Publish your rider profile before requesting to join.'; end if;
+  if exists(
+    select 1 from private.listings
+    where owner_id = uid and type = 'team' and id <> t.id
+  ) then
+    raise exception 'You already have a team. Abandon or delete it before joining another.';
+  end if;
 
   update private.team_members tm
   set state = 'left', updated_at = now()
