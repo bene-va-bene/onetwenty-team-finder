@@ -390,7 +390,7 @@ export default function MyListings({
                         disabled={busy}
                         onClick={() => setDeleting(row.id)}
                       >
-                        DELETE
+                        {row.type === "team" ? "DELETE TEAM" : "DELETE RIDER PROFILE"}
                       </button>
                     </div>
 
