@@ -210,3 +210,14 @@ test('publish action uses a platform neutral icon instead of an emoji arrow', ()
   assert.ok(source.includes('className={styles.publishArrow}'));
   assert.ok(!source.includes('>↗<'));
 });
+
+
+test('closing an edited profile warns before unpublished changes are discarded', () => {
+  const source = readFileSync(new URL('../src/app/CreateListingForm.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('DISCARD UNPUBLISHED CHANGES?'));
+  assert.ok(source.includes('Changes you have not published will not be saved.'));
+  assert.ok(source.includes('KEEP EDITING'));
+  assert.ok(source.includes('DISCARD CHANGES'));
+  assert.ok(source.includes('if (dirty)'));
+  assert.ok(source.includes('onClick={requestClose}'));
+});
