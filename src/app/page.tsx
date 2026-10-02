@@ -277,7 +277,7 @@ setShowMessages(false);
           <p className={styles.kicker}>RIDE TOGETHER. FINISH TOGETHER.</p>
           <h1>ONETWENTY<br />PADDOCK.</h1>
           <p className={styles.intro}>
-            Meet the riders. Discover the teams. Find your crew — or show the one you already have. This is your ONETWENTY Paddock.
+            Create your rider profile first. Then find a team, join one, or build your own. Every team in the Paddock is made from riders.
           </p>
 
           <button
@@ -450,11 +450,18 @@ setShowMessages(false);
       </section>
 
       {showCreateForm && (
-  <CreateListingForm kind={createType} initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { setShowCreateForm(false); setEditing(undefined); setShowManage(true); setNotice("Your profile is online. Manage your team and optional RAD RACE feature permission in My Paddock."); void reload(); }} />
+  <CreateListingForm kind={createType} initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { const savedType = editing?.type ?? createType; setShowCreateForm(false); setEditing(undefined); setShowManage(true); setNotice(savedType === "rider" ? "Your rider profile is online. Choose your next step in My Paddock." : "Your team is online. Build your crew from rider profiles."); void reload(); }} />
 )}
 {showMessages && user && <Messages initialId={chatId} onClose={() => { setShowMessages(false); refreshUnread(); }} onUnreadChanged={refreshUnread} />}
 {showSignIn && <SignIn onClose={() => setShowSignIn(false)} />}
-{showManage && <MyListings onCreate={(type) => { setCreateType(type); setEditing(undefined); setShowManage(false); setShowCreateForm(true); }} onOpen={(id) => void openProfile(id)} onClose={() => { setShowManage(false); refreshUnread(); }} onChanged={() => { void reload(); refreshUnread(); }} onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }} />}
+{showManage && <MyListings
+  onCreate={(type) => { setCreateType(type); setEditing(undefined); setShowManage(false); setShowCreateForm(true); }}
+  onOpen={(id) => void openProfile(id)}
+  onBrowseTeams={() => { setShowManage(false); setTypeFilter("team"); setLookingOnly(true); window.scrollTo({ top: document.querySelector(`.${styles.finder}`)?.getBoundingClientRect().top ? window.scrollY + document.querySelector(`.${styles.finder}`)!.getBoundingClientRect().top : 0, behavior: "smooth" }); }}
+  onClose={() => { setShowManage(false); refreshUnread(); }}
+  onChanged={() => { void reload(); refreshUnread(); }}
+  onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }}
+/>}
 {selectedListing && (
   <div
     className={styles.modalBackdrop}
