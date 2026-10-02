@@ -412,7 +412,7 @@ begin
     looking = excluded.looking
   returning * into saved;
 
-  if saved.type = 'team' then
+  if saved.type = 'team' and p_publish then
     insert into private.team_members(team_id, rider_id, state)
     values(saved.id, captain.id, 'accepted')
     on conflict(team_id, rider_id) do update
