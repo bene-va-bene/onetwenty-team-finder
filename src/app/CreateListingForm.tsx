@@ -44,6 +44,8 @@ export default function CreateListingForm({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [dirty, setDirty] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const validationSummaryRef = useRef<HTMLDivElement>(null);
   const savedRecord = useRef<Listing | undefined>(initial);
   const newId = useRef<string | null>(null);
@@ -139,7 +141,21 @@ export default function CreateListingForm({
     };
   }, [imagePreview]);
 
+  function markDirty() {
+    setDirty(true);
+  }
+
+  function requestClose() {
+    if (saving) return;
+    if (dirty) {
+      setConfirmClose(true);
+      return;
+    }
+    onClose();
+  }
+
   function toggleVibe(vibe: string) {
+    markDirty();
     setSelectedVibes((current) =>
       current.includes(vibe)
         ? current.filter((item) => item !== vibe)
@@ -240,7 +256,7 @@ export default function CreateListingForm({
           <button
             className={styles.formClose}
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             disabled={saving}
             aria-label="Close form"
           >
@@ -331,6 +347,7 @@ export default function CreateListingForm({
             const field = event.target;
             if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
               if (field.name) clearValidationError(field.name);
+              if (field.name && !["publicationConsent", "photoConsent", "email"].includes(field.name)) markDirty();
             }
           }}
           style={preview ? { display: "none" } : undefined}
@@ -367,6 +384,7 @@ export default function CreateListingForm({
                         name="riderGender"
                         checked={riderGender === value}
                         onChange={() => {
+                          markDirty();
                           setRiderGender(value);
                           clearValidationError("riderGender");
                         }}
@@ -385,6 +403,7 @@ export default function CreateListingForm({
                         name="riderPreference"
                         checked={riderPreference === value}
                         onChange={() => {
+                          markDirty();
                           setRiderPreference(value);
                           clearValidationError("riderPreference");
                         }}
@@ -415,7 +434,10 @@ export default function CreateListingForm({
                         type="radio"
                         name="teamSeeking"
                         checked={seeking === option.value}
-                        onChange={() => setSeeking(option.value)}
+                        onChange={() => {
+                          markDirty();
+                          setSeeking(option.value);
+                        }}
                       />
                       <span>{option.label}</span>
                     </label>
@@ -434,7 +456,7 @@ export default function CreateListingForm({
               SHOW YOURSELF
             </legend>
 
-            {photoLoading ? <p role="status">Loading your photo…</p> : <PhotoPicker value={imagePreview} onChange={(value) => { setPhotoChanged(true); setImagePreview(value); }} onBusyChange={setPhotoBusy} />}
+            {photoLoading ? <p role="status">Loading your photo…</p> : <PhotoPicker value={imagePreview} onChange={(value) => { markDirty(); setPhotoChanged(true); setImagePreview(value); }} onBusyChange={setPhotoBusy} />}
             {saveError && !preview && <p role="alert" className={styles.notice}>{saveError}</p>}
           </fieldset>
 
@@ -657,6 +679,39 @@ export default function CreateListingForm({
             </button>
           </div>
         </form>
+        {confirmClose && (
+          <div className={styles.discardOverlay} role="presentation">
+            <section
+              className={styles.discardDialog}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="discard-title"
+              aria-describedby="discard-copy"
+            >
+              <p className={styles.formEyebrow}>UNPUBLISHED CHANGES</p>
+              <h3 id="discard-title">DISCARD UNPUBLISHED CHANGES?</h3>
+              <p id="discard-copy">
+                Changes you have not published will not be saved.
+              </p>
+              <div className={styles.discardActions}>
+                <button
+                  type="button"
+                  className={styles.formSubmit}
+                  onClick={() => setConfirmClose(false)}
+                >
+                  KEEP EDITING
+                </button>
+                <button
+                  type="button"
+                  className={styles.photoButton}
+                  onClick={onClose}
+                >
+                  DISCARD CHANGES
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
       </section>
     </div>
   );
