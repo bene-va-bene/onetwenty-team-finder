@@ -719,7 +719,7 @@ where r.type = 'rider'
   );
 
 create or replace function private.delete_listing(p_id uuid,p_revision integer) returns void
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $delete$
 declare
   uid uuid := private.require_user();
   saved private.listings;
@@ -763,7 +763,7 @@ begin
   end if;
 
   delete from private.listings where id = p_id;
-end $;
+end $delete$;
 
 create or replace function private.paddock_search(
   p_listing uuid,
