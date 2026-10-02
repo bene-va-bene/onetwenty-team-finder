@@ -402,7 +402,12 @@ setShowMessages(false);
                 <div className={styles.cardBody}>
                   <p className={styles.cardMeta}>{meta(listing)}</p>
                   <h3>{listing.name}</h3>
-                  <p className={styles.region}>{listing.region}</p>
+                  {listing.region && (
+                    <p className={styles.region}>
+                      {listing.type === "team" && <span className={styles.regionLabel}>BASED IN</span>}
+                      {listing.region}
+                    </p>
+                  )}
                   <div className={styles.categoryTags}>
                     {listing.type === "rider" ? (
                       <>
@@ -512,7 +517,16 @@ setShowMessages(false);
       <div className={styles.profileContent}>
         <p className={styles.cardMeta}>{meta(selectedListing)}</p>
         <h2 id="profile-title">{selectedListing.name}</h2>
-        {selectedListing.region && <p className={styles.profileRegion}>{selectedListing.region}</p>}
+        {selectedListing.region && (
+          selectedListing.type === "team" ? (
+            <div className={styles.profileBasedIn}>
+              <span>BASED IN</span>
+              <strong>{selectedListing.region}</strong>
+            </div>
+          ) : (
+            <p className={styles.profileRegion}>{selectedListing.region}</p>
+          )
+        )}
         <div className={styles.profileSection}>
           <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER" : "TEAM"}</p>
           <div className={styles.categoryTags}>
