@@ -18,6 +18,7 @@ export default function TeamPanel({
   onSignIn,
   onOpen,
   onManage,
+  onCreateRider,
   onBusy,
   onChanged,
 }: {
@@ -26,6 +27,7 @@ export default function TeamPanel({
   onSignIn: () => void;
   onOpen: (id: string) => void;
   onManage: () => void;
+  onCreateRider: () => void;
   onBusy: (busy: boolean) => void;
   onChanged: () => void;
 }) {
@@ -128,32 +130,34 @@ export default function TeamPanel({
         ) : (
           <p className={styles.fieldHint}>This team isn’t looking for riders right now.</p>
         )
-      ) : !status?.rider ? (
-        <div className={styles.notice}>
-          <p>Create your rider profile first. Every team member starts with a rider profile.</p>
-          <button type="button" className={styles.photoButton} onClick={onManage}>
-            CREATE MY RIDER PROFILE
-          </button>
-        </div>
-      ) : status.state === "accepted" ? (
+      ) : status?.state === "accepted" ? (
         <div className={styles.notice}>
           <p>{status.captain ? "YOU’RE THE CAPTAIN OF THIS TEAM." : "YOU’RE IN THIS TEAM."}</p>
           <button type="button" className={styles.photoButton} onClick={onManage}>
             MY PADDOCK
           </button>
         </div>
-      ) : status.membership ? (
+      ) : status?.membership ? (
         <div className={styles.notice}>
           <p>You’re already in {status.membership.team_name}. Leave it before joining another team.</p>
           <button type="button" className={styles.photoButton} onClick={onManage}>
             MY PADDOCK
           </button>
         </div>
-      ) : status.state === "pending" ? (
+      ) : status?.state === "pending" ? (
         <div className={styles.notice}>
           <p>REQUEST PENDING</p>
           <button type="button" className={styles.photoButton} disabled={busy} onClick={() => void withdraw()}>
             WITHDRAW REQUEST
+          </button>
+        </div>
+      ) : !team.looking ? (
+        <p className={styles.fieldHint}>This team isn’t looking for riders right now.</p>
+      ) : !status?.rider ? (
+        <div className={styles.notice}>
+          <p>Create your rider profile first. Every team member starts with a rider profile.</p>
+          <button type="button" className={styles.photoButton} onClick={onCreateRider}>
+            CREATE MY RIDER PROFILE
           </button>
         </div>
       ) : status.rider.status !== "active" ? (
@@ -163,8 +167,6 @@ export default function TeamPanel({
             MY PADDOCK
           </button>
         </div>
-      ) : !team.looking ? (
-        <p className={styles.fieldHint}>This team isn’t looking for riders right now.</p>
       ) : (
         <div>
           <p className={styles.fieldHint}>
