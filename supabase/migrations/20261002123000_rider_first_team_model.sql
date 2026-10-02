@@ -710,6 +710,53 @@ where r.type = 'rider'
     where m.rider_id = r.id and m.state = 'accepted'
   );
 
+create or replace function private.delete_listing(p_id uuid,p_revision integer) returns void
+language plpgsql security definer set search_path = '' as $
+declare
+  uid uuid := private.require_user();
+  saved private.listings;
+begin
+  select * into saved
+  from private.listings
+  where id = p_id and owner_id = uid
+  for update;
+
+  if not found then raise exception 'Listing not found.' using errcode='42501'; end if;
+  if p_revision is null or saved.revision <> p_revision or saved.status <> 'closed' then
+    raise exception 'Close and reload the listing before deleting.';
+  end if;
+  if exists(
+    select 1 from storage.objects
+    where bucket_id = 'listing-photos'
+      and split_part(name,'/',1) = p_id::text
+  ) then
+    raise exception 'Photo cleanup is incomplete. Please retry deletion.';
+  end if;
+
+  if saved.type = 'rider' then
+    if exists(
+      select 1 from private.team_members
+      where rider_id = saved.id and state = 'accepted'
+    ) or exists(
+      select 1 from private.listings
+      where owner_id = uid and type = 'team' and id <> saved.id
+    ) then
+      raise exception 'Leave or abandon your team before deleting your rider profile.';
+    end if;
+  else
+    update private.listings r
+    set looking = true, revision = revision + 1, updated_at = now()
+    where r.type = 'rider'
+      and r.id in (
+        select m.rider_id
+        from private.team_members m
+        where m.team_id = saved.id and m.state = 'accepted'
+      );
+  end if;
+
+  delete from private.listings where id = p_id;
+end $;
+
 create or replace function private.paddock_search(
   p_listing uuid,
   p_looking boolean,
