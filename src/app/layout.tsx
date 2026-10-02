@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://teamfinder.rad-race.com"),
+  metadataBase: new URL("https://paddock.rad-race.com"),
 
   title: "RAD RACE ONETWENTY PADDOCK",
   description: "Meet the riders. Discover the teams. Find your crew.",
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "RAD RACE ONETWENTY PADDOCK",
     description: "Meet the riders. Discover the teams. Find your crew.",
-    url: "https://teamfinder.rad-race.com",
+    url: "https://paddock.rad-race.com",
     siteName: "RAD RACE",
     type: "website",
   },
@@ -17,6 +17,12 @@ export const metadata: Metadata = {
 
 import "./globals.css";
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
 }
