@@ -30,12 +30,12 @@ export default function CreateListingForm({
   kind,
 }: CreateListingFormProps) {
   const listingType = initial?.type ?? kind;
-  const [looking, setLooking] = useState(initial?.looking ?? false);
+  const [riderLooking, setRiderLooking] = useState(initial?.looking ?? false);
   const [riderGender, setRiderGender] = useState(initial?.riderGender ?? "");
   const [teamCategory, setTeamCategory] = useState(initial?.type === "team" ? initial.categories[0] : "Mixed");
   const [preferredCategories, setPreferredCategories] = useState<string[]>(initial?.type === "rider" ? initial.categories : []);
-  const [mixedSeeking, setMixedSeeking] = useState(initial?.seeking ?? "Anyone");
-  const seeking = teamCategory === "Mixed" ? mixedSeeking : teamCategory;
+  const [seeking, setSeeking] = useState(initial?.looking ? initial.seeking ?? "" : "");
+  const looking = listingType === "team" ? Boolean(seeking) : riderLooking;
   const availableCategories = riderGender === "Woman" ? ["Women", "Mixed"] : riderGender === "Man" ? ["Men", "Mixed"] : [];
   const [selectedVibes, setSelectedVibes] = useState<string[]>(initial?.vibes ?? []);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -75,9 +75,9 @@ export default function CreateListingForm({
         type: listingType, looking, name: preview.displayName, region: preview.region,
         description: preview.description, languages: preview.languages,
         age: listingType === "rider" && preview.age ? Number(preview.age) : null,
-        ridersNeeded: listingType === "team" ? Number(preview.ridersNeeded) : null,
+        ridersNeeded: listingType === "team" && looking && preview.ridersNeeded ? Number(preview.ridersNeeded) : null,
         riderGender: listingType === "rider" ? riderGender || null : null,
-        seeking: listingType === "team" ? seeking : null,
+        seeking: listingType === "team" ? seeking || null : null,
         categories: listingType === "rider" ? preferredCategories : [teamCategory],
         vibes: selectedVibes, strava: preview.strava, instagram: preview.instagram,
       };
@@ -207,7 +207,7 @@ export default function CreateListingForm({
                 </div>
               )}
               <p className={styles.formEyebrow}>
-                {looking ? (listingType === "rider" ? "LOOKING FOR A TEAM" : "LOOKING FOR RIDERS") : (listingType === "team" ? "TEAM COMPLETE" : "RIDER PROFILE")}
+                {looking ? (listingType === "rider" ? "LOOKING FOR A TEAM" : "LOOKING FOR RIDERS") : (listingType === "team" ? "TEAM PROFILE" : "RIDER PROFILE")}
               </p>
               <h3 style={{ fontSize: "clamp(2rem, 7vw, 3.5rem)", lineHeight: 1.1 }}>
                 {preview.displayName}
@@ -235,7 +235,7 @@ export default function CreateListingForm({
               <dl className={styles.profileSection} style={{ display: "grid", gap: 16 }}>
                 <div><dt>Languages</dt><dd>{preview.languages}</dd></div>
                 {listingType === "rider" && preview.age && <div><dt>Age</dt><dd>{preview.age}</dd></div>}
-                {listingType === "team" && looking && (
+                {listingType === "team" && looking && preview.ridersNeeded && (
                   <div><dt>Riders needed</dt><dd>{preview.ridersNeeded === "5" ? "5+" : preview.ridersNeeded}</dd></div>
                 )}
                 {(["strava", "instagram"] as const).map((field) => preview[field] && (
@@ -263,11 +263,11 @@ export default function CreateListingForm({
         }} style={preview ? { display: "none" } : undefined}>
           <fieldset className={styles.formSection}>
             <legend>{listingType === "rider" ? "YOUR RIDER PROFILE" : "YOUR TEAM"}</legend>
-            <p className={styles.fieldHint}>{listingType === "rider" ? "This is your one rider profile. Teams link to it, so you never need to create yourself again." : "Show your crew, whether you’re complete or still looking for riders. You’ll manage membership requests as captain."}</p>
-            <div className={styles.formTypeOptions}>
-              <label><input type="radio" name="looking" checked={!looking} onChange={() => setLooking(false)} /><span><strong>{listingType === "team" ? "TEAM COMPLETE" : "JUST HERE TO RIDE"}</strong>{listingType === "team" ? "We’re showing our team. Our riders can still request to join." : "Show my profile. I’m not looking for a team."}</span></label>
-              <label><input type="radio" name="looking" checked={looking} onChange={() => setLooking(true)} /><span><strong>{listingType === "team" ? "LOOKING FOR RIDERS" : "LOOKING FOR A TEAM"}</strong>Include me in the team finder.</span></label>
-            </div>
+            <p className={styles.fieldHint}>{listingType === "rider" ? "This is your one rider profile. Teams link to it, so you never need to create yourself again." : "Show your crew and optionally say who you’re looking for. Your team can have any number of members. Riders can always contact you or request to join; you manage requests as captain."}</p>
+            {listingType === "rider" && <div className={styles.formTypeOptions}>
+              <label><input type="radio" name="looking" checked={!riderLooking} onChange={() => setRiderLooking(false)} /><span><strong>JUST HERE TO RIDE</strong>Show my profile. I’m not looking for a team.</span></label>
+              <label><input type="radio" name="looking" checked={riderLooking} onChange={() => setRiderLooking(true)} /><span><strong>LOOKING FOR A TEAM</strong>Show that I’m looking for a team.</span></label>
+            </div>}
           </fieldset>
 
           <fieldset className={styles.formSection}>
@@ -296,12 +296,17 @@ export default function CreateListingForm({
             ) : (
               <div className={styles.fieldGrid}>
                 <label><span>TEAM CATEGORY</span>
-                  <select value={teamCategory} onChange={(event) => setTeamCategory(event.target.value)}>
+                  <select value={teamCategory} onChange={(event) => {
+                    const category = event.target.value;
+                    setTeamCategory(category);
+                    if (seeking && category !== "Mixed") setSeeking(category);
+                  }}>
                     <option>Men</option><option>Women</option><option>Mixed</option>
                   </select>
                 </label>
-                <label><span>WHO ARE YOU LOOKING FOR?</span>
-                  <select value={seeking} disabled={teamCategory !== "Mixed"} onChange={(event) => setMixedSeeking(event.target.value)}>
+                <label><span>LOOKING FOR <em>OPTIONAL</em></span>
+                  <select value={seeking} onChange={(event) => setSeeking(event.target.value)}>
+                    <option value="">No looking-for status</option>
                     {teamCategory === "Mixed" ? <><option>Anyone</option><option>Women</option><option>Men</option></> : <option>{teamCategory}</option>}
                   </select>
                 </label>
@@ -380,8 +385,9 @@ export default function CreateListingForm({
 
               {listingType === "team" && looking && (
                 <label>
-                  <span>RIDERS NEEDED</span>
-                  <select name="ridersNeeded" defaultValue={initial?.ridersNeeded || 1} required>
+                  <span>RIDERS NEEDED <em>OPTIONAL</em></span>
+                  <select name="ridersNeeded" defaultValue={initial?.looking ? initial.ridersNeeded || "" : ""}>
+                    <option value="">No number specified</option>
                     <option value="1">1 rider</option>
                     <option value="2">2 riders</option>
                     <option value="3">3 riders</option>

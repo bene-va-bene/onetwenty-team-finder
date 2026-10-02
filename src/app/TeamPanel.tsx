@@ -34,7 +34,7 @@ export default function TeamPanel({ team, signedIn, onSignIn, onOpen, onManage, 
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={photoUrl(rider, true)} alt="" loading="lazy" /><strong>{rider.name}</strong>
     </button>)}</div>
-    {loaded && !roster.length && <p className={styles.fieldHint}>No rider profiles linked yet. The team can already be complete — teammates just need to request to join.</p>}
+    {loaded && !roster.length && <p className={styles.fieldHint}>No rider profiles linked yet. Teammates can request to join and link their profiles.</p>}
     {error && <p role="alert" className={styles.notice}>{error} <button type="button" disabled={busy} onClick={() => setRefresh(n => n + 1)}>TRY AGAIN</button></p>}
     {!loaded ? <p role="status">Loading team…</p> : !signedIn ? <button type="button" className={styles.formSubmit} onClick={onSignIn}>SIGN IN TO REQUEST TO JOIN →</button>
       : status?.state === "accepted" ? <div className={styles.notice}><p>YOU’RE IN THIS TEAM.</p><button type="button" className={styles.photoButton} onClick={onManage}>MY PADDOCK</button></div>
@@ -46,7 +46,7 @@ export default function TeamPanel({ team, signedIn, onSignIn, onOpen, onManage, 
       }}>WITHDRAW REQUEST</button></div>
       : status?.rider && status.rider.status !== "active" ? <div className={styles.notice}><p>Your rider profile is hidden or a draft. Publish it first.</p><button type="button" className={styles.photoButton} onClick={onManage}>MY PADDOCK</button></div>
       : <form onSubmit={event => { event.preventDefault(); void request(); }}>
-        {!team.looking && <p className={styles.fieldHint}>This team isn’t recruiting. Already part of the crew? Request to link your profile.</p>}
+        {!team.looking && <p className={styles.fieldHint}>This team has no looking-for status. You can still send an initiative request or link your profile if you’re already part of the crew.</p>}
         {!status?.rider && <><label className={styles.fullField}><span>YOUR NAME</span><input required maxLength={60} autoComplete="given-name" value={name} onChange={e => setName(e.target.value)} /></label><label className={styles.checkLine}><input required type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>I agree to publicly show my rider name and approved team membership in the Paddock. <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy notice</a>.</span></label><p className={styles.fieldHint}>One rider profile, reused everywhere. Photo and other details can come later.</p></>}
         {status?.rider && <p className={styles.fieldHint}>Joining as <strong>{status.rider.name}</strong>. Your approved membership will appear on the public team profile.</p>}
         <button className={styles.formSubmit} type="submit" disabled={busy}>{busy ? "SENDING…" : status?.captain ? "JOIN MY TEAM" : "REQUEST TO JOIN"} →</button>

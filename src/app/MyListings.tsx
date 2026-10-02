@@ -28,7 +28,7 @@ export default function MyListings({ onClose, onEdit, onCreate, onOpen, onChange
   return <div className={styles.formBackdrop}><section className={styles.formPanel} role="dialog" data-busy={busy} aria-modal="true" aria-labelledby="manage-title">
     <header className={styles.formHeader}><h2 id="manage-title">MY PADDOCK</h2><button type="button" className={styles.formClose} onClick={onClose} disabled={busy}>CLOSE ×</button></header>
     <div className={styles.listingForm}>
-      <p className={styles.fieldHint}>Your rider profile, your teams and your requests. A complete team stays visible. Hide a profile only when you want it taken off the public Paddock.</p>
+      <p className={styles.fieldHint}>Your rider profile, your teams and your requests. Teams stay visible whether or not they’re looking for riders. Hide a profile only when you want it taken off the public Paddock.</p>
       {error && <p role="alert" className={styles.notice}>{error} <button type="button" disabled={busy} onClick={() => void act(load)}>TRY AGAIN</button></p>}
       {!home ? <p role="status">Loading your Paddock…</p> : <>
         <div className={styles.photoActions}>
@@ -50,7 +50,7 @@ export default function MyListings({ onClose, onEdit, onCreate, onOpen, onChange
           <p className={styles.fieldHint}>Published: {dateLabel(row.published_at)} · Deletion due: {dateLabel(row.expires_at)}</p>
           <div className={styles.photoActions}>
             <button className={styles.photoButton} type="button" disabled={busy} onClick={() => onEdit(row)}>EDIT</button>
-            {row.status !== "draft" && <><button className={styles.photoButton} type="button" disabled={busy} onClick={() => void act(() => rpc("paddock_search", { p_listing: row.id, p_looking: !row.looking, p_revision: row.revision }))}>{row.looking ? (row.type === "team" ? "MARK TEAM COMPLETE" : "STOP LOOKING") : (row.type === "team" ? "LOOK FOR RIDERS" : "LOOK FOR A TEAM")}</button>
+            {row.status !== "draft" && <>{row.type === "rider" && <button className={styles.photoButton} type="button" disabled={busy} onClick={() => void act(() => rpc("paddock_search", { p_listing: row.id, p_looking: !row.looking, p_revision: row.revision }))}>{row.looking ? "STOP LOOKING" : "LOOK FOR A TEAM"}</button>}
             <button className={styles.photoButton} type="button" disabled={busy} onClick={() => void act(() => rpc("set_listing_status", { p_id: row.id, p_status: row.status === "active" ? "closed" : "active", p_revision: row.revision }))}>{row.status === "active" ? "HIDE PROFILE" : "SHOW PROFILE"}</button></>}
             <button className={styles.photoButton} type="button" disabled={busy} onClick={() => setDeleting(row.id)}>DELETE</button>
           </div>

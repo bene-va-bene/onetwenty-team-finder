@@ -63,7 +63,7 @@ end $$;
 set local role anon;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
 do $$ begin
- if public.paddock_list('team','Paddock fixture')->>'total'<>'1' then raise exception 'FAIL complete hidden'; end if;
+ if public.paddock_list('team','Paddock fixture')->>'total'<>'1' then raise exception 'FAIL non-looking team hidden'; end if;
  if public.paddock_list('team','Paddock fixture',true)->>'total'<>'0' then raise exception 'FAIL search filter'; end if;
  if public.paddock_list('team','Paddock fixture')::text like '%owner_id%' then raise exception 'FAIL owner leak'; end if;
  begin perform public.paddock_home(); raise exception 'FAIL anon home'; exception when insufficient_privilege then null; end;
@@ -75,4 +75,4 @@ do $$ begin
  if exists(select 1 from private.team_members where team_id=current_setting('test.team')::uuid) or exists(select 1 from private.paddock_events where team_id=current_setting('test.team')::uuid) then raise exception 'FAIL cascade'; end if;
 end $$;
 rollback;
-select 'PASS canonical profile, consent, complete teams, captain approval, access controls, single membership, mail grouping, privacy and cascade' as result;
+select 'PASS canonical profile, consent, non-looking teams, captain approval, access controls, single membership, mail grouping, privacy and cascade' as result;

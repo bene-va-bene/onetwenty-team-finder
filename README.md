@@ -468,3 +468,32 @@ The approved sign-in HTML is supabase/templates/sign-in.html. In the dedicated S
 Reconstruction prompt addition: Preserve the approved email wording in these source files exactly; do not reintroduce discarded headings or replace “much love”. Configure both hosted sign-in templates from the versioned HTML, retaining Supabase’s confirmation URL. Verify contact Reply-To and immutable reminder deletion dates. Do not include secrets in documentation.
 
 Installation status: package prepared and tested locally; user must run installer on Mac and save the two Supabase templates separately.
+
+## Optional team search — 2 October 2026
+
+Team creation/editing now has a single optional **Looking for** selection. Leaving it
+empty publishes the team without a search status. The optional riders-needed number
+is only a public signal (5 means 5+), never a roster limit. Teams can accept any number
+of members. Messages and join requests remain available for every public, unexpired
+team, including teams with no search signal. Existing approval, block, account and
+rate-limit rules still apply; rider profile search behavior is unchanged.
+
+Apply `supabase/migrations/20261002095035_optional_team_seeking.sql` to the existing
+ONETWENTY project (`aqzxhfiaezmwkaqtktvi`) **before deploying this frontend**. It keeps
+profile IDs, memberships and conversations; preserves active search selections; clears
+old seeking/count values for teams whose search was off; and treats a zero count as
+unspecified. The `looking` column remains for rider behavior and existing API/filter
+compatibility, but team saves derive it from the optional seeking selection. Team
+search toggles are retired; change a team's search signal through Edit instead.
+No new environment variables or dependency changes are required.
+
+Validation: `npm test` (15 tests), `npm run lint`, and `npm run build`. Database tests:
+`tests/optional-team-seeking.sql`, `tests/paddock.sql`, `tests/chat.sql`, and
+`tests/rls.sql`. Run after the migrations in a controlled SQL session; each rolls back
+its synthetic fixtures. The new suite verifies absent/cleared search signals, legacy
+client compatibility, initiative chat, seven accepted members and the public search
+filter. All four suites were also run with the new migration inside rollback-only
+transactions on the ONETWENTY schema. No migration or test data was retained, and no
+email worker was invoked. Production migration was applied on 2 October 2026 and the rollback-only optional-team
+regression suite passed against the deployed schema. Frontend release uses the existing
+GitHub main → Vercel deployment connection.

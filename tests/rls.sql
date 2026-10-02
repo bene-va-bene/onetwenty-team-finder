@@ -15,8 +15,8 @@ do $$ declare listing jsonb; begin
     raise exception 'FAIL: stale revision accepted';
   exception when others then if SQLERRM not like 'This listing changed%' then raise; end if; end;
   begin
-    perform public.save_listing('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','{"type":"team","name":"Test","region":"Test","description":"Test","languages":"EN","categories":["Mixed"],"vibes":["Let’s shred"]}',0,true,true,false);
-    raise exception 'FAIL: missing team fields accepted';
+    perform public.save_listing('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','{"type":"team","name":"Test","region":"Test","description":"Test","languages":"EN","categories":[],"vibes":["Let’s shred"]}',0,true,true,false);
+    raise exception 'FAIL: missing team category accepted';
   exception when check_violation then null; end;
 end $$;
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated"}',true);

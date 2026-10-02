@@ -347,7 +347,7 @@ setShowMessages(false);
 </button>        </div>
 
         <label className={styles.searchField}><span className={styles.profileLabel}>FIND A RIDER, TEAM OR CITY</span><input type="search" maxLength={100} placeholder="Search the Paddock…" value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <div className={styles.vibeFilters}><button type="button" aria-pressed={lookingOnly} className={lookingOnly ? styles.activeVibe : ""} onClick={() => setLookingOnly(value => !value)}>TEAM FINDER · STILL LOOKING</button></div>
+        <div className={styles.vibeFilters}><button type="button" aria-pressed={lookingOnly} className={lookingOnly ? styles.activeVibe : ""} onClick={() => setLookingOnly(value => !value)}>STILL LOOKING</button></div>
         <div className={styles.vibeFilters} aria-label="Riding vibe">
           {vibes.map((vibe) => (
             <button
@@ -404,7 +404,7 @@ setShowMessages(false);
                   <h3>{listing.name}</h3>
                   <p className={styles.region}>{listing.region}</p>
                   <div className={styles.categoryTags}>
-                    {(listing.type === "team" || listing.riderGender) && <span>{listing.type === "rider" ? listing.riderGender : listing.looking ? `Looking for: ${listing.seeking}` : "TEAM COMPLETE"}</span>}
+                    {(listing.type === "rider" ? listing.riderGender : listing.looking && listing.seeking) && <span>{listing.type === "rider" ? listing.riderGender : `Looking for: ${listing.seeking}`}</span>}
                     {!!listing.categories.length && <span>{listing.type === "rider" ? "Team categories: " : "Team category: "}{listing.categories.join(", ")}</span>}
                   </div>
                   <p className={styles.description}>{listing.description}</p>
@@ -493,9 +493,9 @@ setShowMessages(false);
         <h2 id="profile-title">{selectedListing.name}</h2>
         <p className={styles.profileRegion}>{selectedListing.region}</p>
         <div className={styles.profileSection}>
-          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER & TEAM PREFERENCE" : "TEAM & RIDER SEARCH"}</p>
+          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER & TEAM PREFERENCE" : "TEAM CATEGORY"}</p>
           <div className={styles.categoryTags}>
-            {(selectedListing.type === "team" || selectedListing.riderGender) && <span>{selectedListing.type === "rider" ? selectedListing.riderGender : selectedListing.looking ? `Looking for: ${selectedListing.seeking}` : "TEAM COMPLETE"}</span>}
+            {(selectedListing.type === "rider" ? selectedListing.riderGender : selectedListing.looking && selectedListing.seeking) && <span>{selectedListing.type === "rider" ? selectedListing.riderGender : `Looking for: ${selectedListing.seeking}`}</span>}
                     {!!selectedListing.categories.length && <span>{selectedListing.type === "rider" ? "Team categories: " : "Team category: "}{selectedListing.categories.join(", ")}</span>}
           </div>
         </div>

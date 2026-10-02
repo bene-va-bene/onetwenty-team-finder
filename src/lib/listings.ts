@@ -12,8 +12,12 @@ export type Listing = {
 };
 export type ListingInput = Pick<Listing, "type" | "name" | "region" | "description" | "vibes" | "categories" | "riderGender" | "seeking" | "age" | "languages" | "ridersNeeded" | "strava" | "instagram" | "looking">;
 export function meta(listing: Listing) {
-  if (!listing.looking) return listing.type === "team" ? "Team complete" : "Rider · not looking for a team";
-  return listing.type === "rider" ? "Looking for a team" : `Looking for ${listing.ridersNeeded === 5 ? "5+" : listing.ridersNeeded} rider${listing.ridersNeeded === 1 ? "" : "s"}`;
+  if (listing.type === "team") {
+    if (!listing.looking || !listing.seeking) return "Team";
+    if (!listing.ridersNeeded) return "Looking for riders";
+    return `Looking for ${listing.ridersNeeded === 5 ? "5+" : listing.ridersNeeded} rider${listing.ridersNeeded === 1 ? "" : "s"}`;
+  }
+  return listing.looking ? "Looking for a team" : "Rider · not looking for a team";
 }
 export function photoUrl(listing: Pick<Listing, "id" | "image_path" | "revision">, thumb = false) {
   return listing.image_path ? `/api/photos?id=${listing.id}&v=${listing.revision}${thumb ? "&size=thumb" : ""}` : "/rider-placeholder.svg";
