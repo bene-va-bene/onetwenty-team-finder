@@ -67,17 +67,17 @@ language sql stable security definer set search_path = '' as $$
   with member_languages as (
     select distinct
       m.rider_id,
-      lower(trim(token)) as key,
-      trim(token) as label
+      lower(trim(lang.value)) as key,
+      trim(lang.value) as label
     from private.team_members m
     join private.listings r on r.id = m.rider_id
-    cross join lateral regexp_split_to_table(r.languages, '[,;/|]+') as token
+    cross join lateral regexp_split_to_table(r.languages, '[,;/|]+') as lang(value)
     where m.team_id = p_team
       and m.state = 'accepted'
       and r.type = 'rider'
       and r.status = 'active'
       and r.expires_at > now()
-      and trim(token) <> ''
+      and trim(lang.value) <> ''
   ),
   ranked as (
     select key, min(label) as label, count(*) as frequency
