@@ -457,7 +457,12 @@ setShowMessages(false);
 {showManage && <MyListings
   onCreate={(type) => { setCreateType(type); setEditing(undefined); setShowManage(false); setShowCreateForm(true); }}
   onOpen={(id) => void openProfile(id)}
-  onBrowseTeams={() => { setShowManage(false); setTypeFilter("team"); setLookingOnly(true); window.scrollTo({ top: document.querySelector(`.${styles.finder}`)?.getBoundingClientRect().top ? window.scrollY + document.querySelector(`.${styles.finder}`)!.getBoundingClientRect().top : 0, behavior: "smooth" }); }}
+  onBrowseTeams={() => {
+    setShowManage(false);
+    setTypeFilter("team");
+    setLookingOnly(true);
+    window.setTimeout(() => document.querySelector(`.${styles.finder}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }}
   onClose={() => { setShowManage(false); refreshUnread(); }}
   onChanged={() => { void reload(); refreshUnread(); }}
   onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }}
