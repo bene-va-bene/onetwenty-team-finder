@@ -33,8 +33,16 @@ export async function POST(request: Request) {
     }
     // Decode and encode again. This verifies content and strips EXIF/GPS, even if
     // a caller bypasses the browser cropper. Originals are never stored.
-    const image = await sharp(Buffer.concat(parts), { limitInputPixels: 40_000_000 }).rotate()
-      .resize(1200, 1200, { fit: "cover", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 85 }).toBuffer();
+    let image = await sharp(Buffer.concat(parts), { limitInputPixels: 40_000_000 }).rotate()
+      .resize(1200, 1200, { fit: "cover", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 82 }).toBuffer();
+    // Bound the stored asset; no original or EXIF is kept.
+    const isRider = (mine.data as Listing[]).find(listing => listing.id === id)?.type === "rider";
+    const maxBytes = isRider ? 150_000 : 250_000;
+    for (const width of [1000, 800, 600, 400]) {
+      if (image.length <= maxBytes) break;
+      image = await sharp(image).resize(width, width, { fit: "cover", withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer();
+    }
+    if (image.length > maxBytes) return error("Please choose a simpler or smaller photo.", 413);
     const path = `${id}/${crypto.randomUUID()}.jpg`;
     const upload = await client.storage.from("listing-photos").upload(path, image, { contentType: "image/jpeg", upsert: false });
     if (upload.error) return error("Could not save your photo. Please try again.", 503);
@@ -53,7 +61,7 @@ export async function GET(request: Request) {
     const photo = await client.storage.from("listing-photos").download(data.image_path);
     if (photo.error || !photo.data) return error("Photo not found.", 404);
     const image = await sharp(Buffer.from(await photo.data.arrayBuffer()), { limitInputPixels: 40_000_000 })
-      .rotate().resize(1200, 1200, { fit: "cover", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+      .rotate().resize(new URL(request.url).searchParams.get("size") === "thumb" ? 360 : 1200, undefined, { withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
     return new Response(new Uint8Array(image), { headers: { ...headers, "Content-Type": "image/jpeg" } });
   } catch { return error("Photo not found.", 404); }
 }

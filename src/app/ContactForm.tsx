@@ -26,6 +26,12 @@ export default function ContactForm({ listingId, threadId, onBusy, onSent }: {
     }).catch(error => { if (active) setLookup({ listing: listingId, error: message(error) }); });
     return () => { active = false; };
   }, [listingId, threadId, retry]);
+  useEffect(() => {
+    if (threadId) return;
+    let active = true;
+    rpc<{ rider: { name: string } | null }>("paddock_home").then(home => { if (active && home.rider) setName(current => current || home.rider!.name); }).catch(() => {});
+    return () => { active = false; };
+  }, [threadId]);
   if (!threadId && listingId && (lookup?.listing !== listingId || lookup.error)) {
     return lookup?.listing === listingId && lookup.error ? <div className={styles.notice} role="alert">
       {lookup.error} <button type="button" onClick={() => { setLookup(null); setRetry(n => n + 1); }}>TRY AGAIN</button>

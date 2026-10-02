@@ -19,6 +19,7 @@ type CreateListingFormProps = {
   onSaved: () => void;
   email: string;
   initial?: Listing;
+  kind: "rider" | "team";
 };
 
 export default function CreateListingForm({
@@ -26,8 +27,10 @@ export default function CreateListingForm({
   onSaved,
   email,
   initial,
+  kind,
 }: CreateListingFormProps) {
-  const [listingType, setListingType] = useState<"rider" | "team">(initial?.type ?? "rider");
+  const listingType = initial?.type ?? kind;
+  const [looking, setLooking] = useState(initial?.looking ?? false);
   const [riderGender, setRiderGender] = useState(initial?.riderGender ?? "");
   const [teamCategory, setTeamCategory] = useState(initial?.type === "team" ? initial.categories[0] : "Mixed");
   const [preferredCategories, setPreferredCategories] = useState<string[]>(initial?.type === "rider" ? initial.categories : []);
@@ -66,13 +69,14 @@ export default function CreateListingForm({
   async function publish() {
     if (!preview || saving || photoLoadFailed) return;
     setSaving(true); setSaveError("");
+    let stagedPhoto: string | null = null;
     try {
       const input: ListingInput = {
-        type: listingType, name: preview.displayName, region: preview.region,
+        type: listingType, looking, name: preview.displayName, region: preview.region,
         description: preview.description, languages: preview.languages,
         age: listingType === "rider" && preview.age ? Number(preview.age) : null,
         ridersNeeded: listingType === "team" ? Number(preview.ridersNeeded) : null,
-        riderGender: listingType === "rider" ? riderGender : null,
+        riderGender: listingType === "rider" ? riderGender || null : null,
         seeking: listingType === "team" ? seeking : null,
         categories: listingType === "rider" ? preferredCategories : [teamCategory],
         vibes: selectedVibes, strava: preview.strava, instagram: preview.instagram,
@@ -88,13 +92,17 @@ export default function CreateListingForm({
         const response = await fetch(`/api/photos?id=${id}`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "image/jpeg" }, body: blob });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Photo upload failed.");
-        path = result.path;
+        path = result.path; stagedPhoto = path;
       }
       await rpc<Listing>("save_listing", { p_id: id, p_data: { ...input, image_path: path }, p_revision: savedRecord.current?.revision ?? 0, p_publish: true, p_consent: true, p_photo_consent: Boolean(imagePreview) });
+      stagedPhoto = null;
       // Old photos are no longer publicly readable once the database points at the new one.
       if (oldPath && oldPath !== path) await browserSupabase().storage.from("listing-photos").remove([oldPath]);
       onSaved();
-    } catch (error) { setSaveError(message(error)); } finally { setSaving(false); }
+    } catch (error) {
+      if (stagedPhoto) await browserSupabase().storage.from("listing-photos").remove([stagedPhoto]);
+      setSaveError(message(error));
+    } finally { setSaving(false); }
   }
 
   useEffect(() => {
@@ -127,7 +135,7 @@ export default function CreateListingForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (photoBusy || photoLoading || photoLoadFailed || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))) {
+    if (photoBusy || photoLoading || photoLoadFailed) {
       return;
     }
 
@@ -137,7 +145,7 @@ export default function CreateListingForm({
     for (const field of fields) {
       publicFields[field] = String(data.get(field) ?? "").trim();
     }
-    for (const field of ["displayName", "region", "languages", "description"]) {
+    for (const field of ["displayName"]) {
       const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement | HTMLTextAreaElement;
       input.setCustomValidity(publicFields[field] ? "" : "Please complete this field.");
       if (!input.reportValidity()) return;
@@ -171,7 +179,7 @@ export default function CreateListingForm({
           <div>
             <p className={styles.formEyebrow}>ONETWENTY 2027</p>
             <h2 id="create-listing-title" ref={headingRef} tabIndex={-1}>
-              {preview ? "YOUR LISTING PREVIEW" : initial ? "EDIT YOUR LISTING" : "CREATE A LISTING"}
+              {preview ? "YOUR PROFILE PREVIEW" : initial ? "EDIT YOUR PROFILE" : "CREATE YOUR PROFILE"}
             </h2>
           </div>
 
@@ -199,7 +207,7 @@ export default function CreateListingForm({
                 </div>
               )}
               <p className={styles.formEyebrow}>
-                {listingType === "rider" ? "LOOKING FOR A TEAM" : "LOOKING FOR RIDERS"}
+                {looking ? (listingType === "rider" ? "LOOKING FOR A TEAM" : "LOOKING FOR RIDERS") : (listingType === "team" ? "TEAM COMPLETE" : "RIDER PROFILE")}
               </p>
               <h3 style={{ fontSize: "clamp(2rem, 7vw, 3.5rem)", lineHeight: 1.1 }}>
                 {preview.displayName}
@@ -209,7 +217,7 @@ export default function CreateListingForm({
                 <p className={styles.profileLabel}>{listingType === "rider" ? "OPEN TO TEAM CATEGORIES" : "TEAM CATEGORY"}</p>
                 <div className={styles.categoryTags}>
                   {(listingType === "rider" ? preferredCategories : [teamCategory]).map((category) => <span key={category}>{category}</span>)}
-                  <span>{listingType === "rider" ? riderGender : `Seeking: ${seeking}`}</span>
+                  {(riderGender || (listingType === "team" && looking)) && <span>{listingType === "rider" ? riderGender : `Seeking: ${seeking}`}</span>}
                 </div>
               </div>
               <div className={styles.profileSection}>
@@ -227,7 +235,7 @@ export default function CreateListingForm({
               <dl className={styles.profileSection} style={{ display: "grid", gap: 16 }}>
                 <div><dt>Languages</dt><dd>{preview.languages}</dd></div>
                 {listingType === "rider" && preview.age && <div><dt>Age</dt><dd>{preview.age}</dd></div>}
-                {listingType === "team" && (
+                {listingType === "team" && looking && (
                   <div><dt>Riders needed</dt><dd>{preview.ridersNeeded === "5" ? "5+" : preview.ridersNeeded}</dd></div>
                 )}
                 {(["strava", "instagram"] as const).map((field) => preview[field] && (
@@ -240,11 +248,11 @@ export default function CreateListingForm({
             </article>
             <div className={styles.formSubmitArea} style={{ marginTop: 32 }}>
               {saveError && <p role="alert" className={styles.notice}>{saveError}</p>}
-              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : "PUBLISH LISTING"} <span aria-hidden="true">↗</span></button>
+              <button className={styles.formSubmit} type="button" disabled={saving} onClick={() => void publish()}>{saving ? "SAVING…" : "PUBLISH PROFILE"} <span aria-hidden="true">↗</span></button>
               <button className={styles.profileButton} type="button" disabled={saving} onClick={() => setPreview(null)}>
                 BACK TO EDIT <span aria-hidden="true">←</span>
               </button>
-              <p>{initial?.expires_at ? `Your original deletion date remains ${dateLabel(initial.expires_at)}.` : "Your listing is stored for up to ten months from its first publication."} You can close or delete it in My listings.</p>
+              <p>{initial?.expires_at ? `Your original deletion date remains ${dateLabel(initial.expires_at)}.` : "Your profile is stored for up to ten months from its first publication."} You can hide or delete it in My Paddock.</p>
             </div>
           </div>
         )}
@@ -254,39 +262,11 @@ export default function CreateListingForm({
           if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) field.setCustomValidity("");
         }} style={preview ? { display: "none" } : undefined}>
           <fieldset className={styles.formSection}>
-            <legend>
-              <span>01</span>
-              WHAT ARE YOU LOOKING FOR?
-            </legend>
-
+            <legend>{listingType === "rider" ? "YOUR RIDER PROFILE" : "YOUR TEAM"}</legend>
+            <p className={styles.fieldHint}>{listingType === "rider" ? "This is your one rider profile. Teams link to it, so you never need to create yourself again." : "Show your crew, whether you’re complete or still looking for riders. You’ll manage membership requests as captain."}</p>
             <div className={styles.formTypeOptions}>
-              <label>
-                <input
-                  type="radio"
-                  name="listingType"
-                  value="rider"
-                  checked={listingType === "rider"}
-                  onChange={() => setListingType("rider")}
-                />
-                <span>
-                  <strong>I NEED A TEAM</strong>
-                  I’m a rider looking for people to join.
-                </span>
-              </label>
-
-              <label>
-                <input
-                  type="radio"
-                  name="listingType"
-                  value="team"
-                  checked={listingType === "team"}
-                  onChange={() => setListingType("team")}
-                />
-                <span>
-                  <strong>WE NEED RIDERS</strong>
-                  Our existing team still has open spots.
-                </span>
-              </label>
+              <label><input type="radio" name="looking" checked={!looking} onChange={() => setLooking(false)} /><span><strong>{listingType === "team" ? "TEAM COMPLETE" : "JUST HERE TO RIDE"}</strong>{listingType === "team" ? "We’re showing our team. Our riders can still request to join." : "Show my profile. I’m not looking for a team."}</span></label>
+              <label><input type="radio" name="looking" checked={looking} onChange={() => setLooking(true)} /><span><strong>{listingType === "team" ? "LOOKING FOR RIDERS" : "LOOKING FOR A TEAM"}</strong>Include me in the team finder.</span></label>
             </div>
           </fieldset>
 
@@ -295,8 +275,8 @@ export default function CreateListingForm({
             {listingType === "rider" ? (
               <>
                 <div className={styles.fieldGrid}>
-                  <label><span>GENDER FOR RACE CLASSIFICATION</span>
-                    <select required value={riderGender} onChange={(event) => {
+                  <label><span>RACE CLASSIFICATION (OPTIONAL)</span>
+                    <select value={riderGender} onChange={(event) => {
                       const value = event.target.value;
                       setRiderGender(value);
                       setPreferredCategories((current) => current.filter((category) => category === "Mixed" || category === (value === "Woman" ? "Women" : "Men")));
@@ -305,13 +285,13 @@ export default function CreateListingForm({
                     </select>
                   </label>
                 </div>
-                <p className={styles.fieldHint} style={{ marginTop: 20 }}>Which team categories would work for you? Select all that apply.</p>
+                <p className={styles.fieldHint} style={{ marginTop: 20 }}>Optional: which team categories would work for you?</p>
                 <div className={styles.formVibes}>
                   {availableCategories.map((category) => (
                     <label key={category}><input type="checkbox" checked={preferredCategories.includes(category)} onChange={() => setPreferredCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])} /><span>{category}</span></label>
                   ))}
                 </div>
-                {preferredCategories.length === 0 && <p className={styles.vibeRequirement}>Select your race classification and at least one team category.</p>}
+
               </>
             ) : (
               <div className={styles.fieldGrid}>
@@ -327,7 +307,7 @@ export default function CreateListingForm({
                 </label>
               </div>
             )}
-            <p className={styles.fieldHint} style={{ marginTop: 20 }}>These selections appear on your public listing. The finder helps you connect; it does not register you for the race.</p>
+            <p className={styles.fieldHint} style={{ marginTop: 20 }}>These selections appear on your public profile. The Paddock helps you connect; it does not register you for the race.</p>
             {(listingType === "team" ? teamCategory === "Mixed" : preferredCategories.includes("Mixed")) && (
               <p className={styles.fieldHint}>Mixed road-race timing requires at least three finishers, including a woman and a man. <a href="https://www.808project.de/one-twenty/ausschreibung" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>Read the race rules</a>.</p>
             )}
@@ -354,13 +334,12 @@ export default function CreateListingForm({
                 <span>DISPLAY NAME</span>
                 <input
                   type="text"
-                  name="displayName"
+                  name="displayName" required
                   defaultValue={initial?.name}
                   maxLength={60}
                   placeholder={
                     listingType === "rider" ? "e.g. Mara" : "e.g. Team No Sleep"
                   }
-                  required
                 />
               </label>
 
@@ -372,7 +351,6 @@ export default function CreateListingForm({
                   defaultValue={initial?.region}
                   maxLength={100}
                   placeholder="e.g. Hamburg"
-                  required
                 />
               </label>
 
@@ -397,14 +375,13 @@ export default function CreateListingForm({
                   defaultValue={initial?.languages}
                   maxLength={100}
                   placeholder="e.g. EN, DE"
-                  required
                 />
               </label>
 
-              {listingType === "team" && (
+              {listingType === "team" && looking && (
                 <label>
                   <span>RIDERS NEEDED</span>
-                  <select name="ridersNeeded" defaultValue={initial?.ridersNeeded ?? 1} required>
+                  <select name="ridersNeeded" defaultValue={initial?.ridersNeeded || 1} required>
                     <option value="1">1 rider</option>
                     <option value="2">2 riders</option>
                     <option value="3">3 riders</option>
@@ -439,11 +416,7 @@ export default function CreateListingForm({
               ))}
             </div>
 
-            {selectedVibes.length === 0 && (
-              <p className={styles.vibeRequirement}>
-                Choose at least one Riding Vibe.
-              </p>
-            )}
+
           </fieldset>
 
           <fieldset className={styles.formSection}>
@@ -460,7 +433,6 @@ export default function CreateListingForm({
                 rows={6}
                 maxLength={700}
                 placeholder="What should a potential team or rider know about you?"
-                required
               />
             </label>
 
@@ -499,7 +471,6 @@ export default function CreateListingForm({
                   autoComplete="email"
                   maxLength={254}
                   placeholder="you@example.com"
-                  required
                 />
               </label>
             </div>
@@ -512,12 +483,12 @@ export default function CreateListingForm({
             </legend>
 
             <div className={styles.consentList}>
-              <p className={styles.fieldHint}>Read about public listings, photos and deletion in our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>privacy notice (opens a new tab)</a>.</p>
+              <p className={styles.fieldHint}>Read about public profiles, photos and deletion in our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>privacy notice (opens a new tab)</a>.</p>
               <label>
                 <input type="checkbox" required />
                 <span>
                   I agree that my selected profile information will be shown
-                  publicly in the Team Finder.
+                  publicly in the RAD RACE ONETWENTY Paddock.
                 </span>
               </label>
 
@@ -526,7 +497,7 @@ export default function CreateListingForm({
     <input type="checkbox" required />
     <span>
       I confirm that I may use this photo and that it can be shown
-      publicly in the Team Finder.
+      publicly in the RAD RACE ONETWENTY Paddock.
     </span>
   </label>
 )}
@@ -543,9 +514,9 @@ export default function CreateListingForm({
               ref={previewButtonRef}
               className={styles.formSubmit}
               type="submit"
-              disabled={photoBusy || photoLoading || photoLoadFailed || selectedVibes.length === 0 || (listingType === "rider" && (!riderGender || preferredCategories.length === 0))}
+              disabled={photoBusy || photoLoading || photoLoadFailed}
             >
-              PREVIEW LISTING
+              PREVIEW PROFILE
               <span aria-hidden="true">→</span>
             </button>
           </div>

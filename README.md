@@ -1,3 +1,23 @@
+# RAD RACE ONETWENTY PADDOCK
+
+The event community now includes riders and complete teams, alongside the Team Finder filter.
+
+## Paddock release — October 2026
+
+- One rider profile per account, reused in team rosters and prefilled when starting a chat.
+- Public teams accept join requests. Only their owner/captain may approve; a rider may have one accepted team. Other pending requests are cancelled on approval. Riders can withdraw or leave, captains can decline/remove.
+- Complete teams remain visible. Search status and visibility are independent. Membership does not prove race registration.
+- My Paddock contains requests, membership, owned profiles and a separate optional RAD RACE feature permission. Editing/hiding resets this permission. Before editorial use, verify current allowed permission and visible/unexpired profile; contact the person for any additional rights or changed material. Permission version paddock-feature-v1 corresponds to the checkbox copy in MyListings.tsx.
+- Team updates share the existing grouped email worker, recipient cooldown and opt-out. No new environment variables or scheduled jobs.
+- Gallery pages contain 24 profiles. Uploads are normalized to JPEG, at most 150 KB per rider / 250 KB per team; Storage caps new uploads at 250 KB. Only the current photo is retained, plus temporary uploads awaiting cleanup. Existing photos are preserved. 3,500 rider photos at the normal cap are at most 525 MB, before team photos and temporary files.
+- Existing profile IDs, messages, publication dates and ten-month deletion dates are preserved.
+- Database migration: `20261001182336_paddock_profiles_and_teams.sql`. Rollback-only regression: `tests/paddock.sql`; existing `tests/chat.sql`, `tests/chat-email.sql`; mocked SMTP tests `node --test tests/mail.test.mjs`.
+- Security advisor: private tables intentionally have RLS with no direct-access policies; RPCs enforce identity/ownership. Password leak protection warning is pre-existing; the app uses emailed sign-in links. References: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy and https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+- Domain remains `teamfinder.rad-race.com`. Planned `paddock.rad-race.com` requires Vercel domain/DNS, APP_URL, Supabase Site URL/redirect allowlist, then a query-preserving redirect from the old hostname. Keep old links working. No domain change or paid plan upgrade is included in this release.
+- Supabase-hosted sign-in email must use `supabase/templates/sign-in.html`; changing this repository file alone does not change the hosted Auth template.
+
+---
+
 ## Current change: private in-app messaging (18 September 2026)
 
 This section supersedes the older contact-email architecture below. New contact messages

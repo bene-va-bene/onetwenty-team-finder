@@ -2,7 +2,7 @@ import { browserSupabase } from "./supabase";
 
 export const vibes = ["Just for the views", "Good times, good pace", "Sporty but social", "Let’s shred", "Race to win"];
 export type Listing = {
-  id: string; type: "rider" | "team"; name: string; region: string;
+  id: string; looking: boolean; type: "rider" | "team"; name: string; region: string;
   description: string; vibes: string[]; categories: string[];
   riderGender: string | null; seeking: string | null; age: number | null;
   languages: string; ridersNeeded: number | null; strava: string; instagram: string;
@@ -10,12 +10,13 @@ export type Listing = {
   published_at: string | null; expires_at: string | null; revision: number;
   created_at: string; updated_at: string;
 };
-export type ListingInput = Pick<Listing, "type" | "name" | "region" | "description" | "vibes" | "categories" | "riderGender" | "seeking" | "age" | "languages" | "ridersNeeded" | "strava" | "instagram">;
+export type ListingInput = Pick<Listing, "type" | "name" | "region" | "description" | "vibes" | "categories" | "riderGender" | "seeking" | "age" | "languages" | "ridersNeeded" | "strava" | "instagram" | "looking">;
 export function meta(listing: Listing) {
-  return listing.type === "rider" ? "Rider looking for a team" : `Team looking for ${listing.ridersNeeded === 5 ? "5+" : listing.ridersNeeded} rider${listing.ridersNeeded === 1 ? "" : "s"}`;
+  if (!listing.looking) return listing.type === "team" ? "Team complete" : "Rider · not looking for a team";
+  return listing.type === "rider" ? "Looking for a team" : `Looking for ${listing.ridersNeeded === 5 ? "5+" : listing.ridersNeeded} rider${listing.ridersNeeded === 1 ? "" : "s"}`;
 }
-export function photoUrl(listing: Listing) {
-  return listing.image_path ? `/api/photos?id=${listing.id}&v=${listing.revision}` : "/rider-placeholder.svg";
+export function photoUrl(listing: Pick<Listing, "id" | "image_path" | "revision">, thumb = false) {
+  return listing.image_path ? `/api/photos?id=${listing.id}&v=${listing.revision}${thumb ? "&size=thumb" : ""}` : "/rider-placeholder.svg";
 }
 export function dateLabel(value: string | null) {
   return value ? new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Not published";

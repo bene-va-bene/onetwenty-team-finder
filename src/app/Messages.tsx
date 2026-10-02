@@ -115,9 +115,9 @@ function EmailNotifications() {
         catch (error) { setError(message(error)); }
         finally { setBusy(false); }
       }} />
-      EMAIL ME ABOUT NEW MESSAGES
+      EMAIL ME ABOUT MESSAGES & TEAM UPDATES
     </label>
-    <p className={styles.fieldHint}>{enabled === null ? "Loading notification settings…" : "A heads-up for unread messages, with a link back here. Message content stays in the app. Multiple messages are grouped."}</p>
+    <p className={styles.fieldHint}>{enabled === null ? "Loading notification settings…" : "A heads-up for unread messages and team updates, with a link back to the Paddock. Message content stays in the app. Multiple messages are grouped."}</p>
     {error && <p className={styles.notice} role="alert">{error} <button type="button" onClick={() => setRefresh(n => n + 1)}>TRY AGAIN</button></p>}
   </div>;
 }

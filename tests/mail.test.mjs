@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const code = ts.transpileModule(readFileSync(new URL('../src/lib/server/mail.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
 const job = { id: 'fixture', kind: 'contact', listing_id: 'listing', name: '<test>', to: 'owner@example.invalid', replyTo: 'sender@example.invalid', body: '<script>not html</script>', published_at: '2026-01-01T00:00:00Z', expires_at: '2026-11-01T00:00:00Z' };
-function setup(outcome, finishFails = false, ready = true) {
+function setup(outcome, finishFails = false, ready = true, activity = false) {
   const writes = []; let sent; let closed = false;
   const fixtureModule = { exports: {} };
   vm.runInNewContext(code, { exports: fixtureModule.exports, module: fixtureModule, URL, Date, process: { env: { SMTP_PASSWORD: 'fixture-not-a-secret', APP_URL: 'https://teamfinder.example.invalid' } },
@@ -19,7 +19,7 @@ function setup(outcome, finishFails = false, ready = true) {
     },
   });
   const client = { async rpc(name, args) {
-    if (name === 'chat_email_claim') return { data: { id: 'notify-fixture', to: job.to }, error: null };
+    if (name === 'chat_email_claim') return { data: { id: 'notify-fixture', to: job.to, activity }, error: null };
     if (name === 'chat_email_ready') return { data: ready, error: null };
     if (name === 'mail_claim') return { data: job, error: null };
     writes.push(args); return { data: null, error: finishFails ? { message: 'database offline' } : null };
@@ -87,4 +87,14 @@ test('chat SMTP success followed by database outage preserves uncertain lease', 
   await assert.rejects(s.api.deliverChatNotification(s.client), /Database operation failed/);
   assert.equal(s.writes.length, 1);
   assert.equal(s.writes[0].p_state, 'sent');
+});
+
+test('team alert opens My Paddock and messages without disclosing request details', async () => {
+ const s = setup({ accepted: [job.to] }, false, true, true);
+ assert.equal(await s.api.deliverChatNotification(s.client), 'sent');
+ assert.match(s.sent().subject, /Your crew has news/);
+ assert.match(s.sent().text, /\?manage=1/);
+ assert.match(s.sent().text, /\?messages=1/);
+ assert.ok(!s.sent().text.includes(job.to));
+ assert.equal(s.sent().replyTo, undefined);
 });

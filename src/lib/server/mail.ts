@@ -27,12 +27,12 @@ function date(value: string) { return new Date(value).toLocaleDateString("en-GB"
 export function mailText(job: MailJob, origin: string) {
   if (job.kind === "contact") return {
     subject: "Someone wants to ride with you.",
-    text: `YOU’VE GOT COMPANY.\n\nSomeone got in touch about your listing “${job.name}”:\n\n${job.body}\n\nHit reply to contact the sender directly. Your reply will share your email address with them.\n\nFound your crew? Close your listing so others know you’re sorted.\n\nMANAGE MY LISTING\n${origin}/?manage=1\n\nmuch love\nRAD RACE`,
+    text: `YOU’VE GOT COMPANY.\n\nSomeone got in touch about your listing “${job.name}”:\n\n${job.body}\n\nHit reply to contact the sender directly. Your reply will share your email address with them.\n\nFound your crew? Close your listing so others know you’re sorted.\n\nMY PADDOCK\n${origin}/?manage=1\n\nmuch love\nRAD RACE`,
   };
   const manage = `${origin}/?manage=1`;
   return {
     subject: "Still looking for your crew?",
-    text: `Friendly reminder:\n\nYour listing “${job.name}” is still online.\n\nStill looking? You don’t need to do anything.\nPlans changed? Edit your listing.\nFound your people? Close it.\n\nMANAGE MY LISTING\n${manage}\n\nPublished: ${date(job.published_at)}\nAutomatic deletion: ${date(job.expires_at)}\n\nYour listing and its associated photo and messages will be deleted ten months after publication. Editing or reopening it won’t extend that date.\n\nThis is a service reminder for your listing. Replies to this reminder aren’t monitored and are automatically discarded.\n\nmuch love\nRAD RACE`,
+    text: `Friendly reminder:\n\nYour profile “${job.name}” is still online.\n\nStill riding with us? You don’t need to do anything.\nFound your crew? Update your search status — your profile can stay visible.\nPlans changed? Edit or hide your profile.\n\nMY PADDOCK\n${manage}\n\nPublished: ${date(job.published_at)}\nAutomatic deletion: ${date(job.expires_at)}\n\nYour listing and its associated photo and messages will be deleted ten months after publication. Editing or reopening it won’t extend that date.\n\nThis is a service reminder for your Paddock profile. Replies to this reminder aren’t monitored and are automatically discarded.\n\nmuch love\nRAD RACE`,
   };
 }
 export async function deliver(client: Admin, id?: string) {
@@ -43,7 +43,7 @@ export async function deliver(client: Admin, id?: string) {
   let state: "sent" | "failed" | "uncertain" = "uncertain";
   try {
     const result = await transport.sendMail({
-      from: { name: "RAD RACE Team Finder", address: "teamfinder@rad-race.com" },
+      from: { name: "RAD RACE ONETWENTY PADDOCK", address: "teamfinder@rad-race.com" },
       to: { name: "", address: job.to },
       replyTo: job.replyTo ? { name: "", address: job.replyTo } : undefined,
       messageId: `<${job.id}@rad-race.com>`, ...mailText(job, config.origin),
@@ -73,15 +73,15 @@ function mailTransport(pass: string) {
 
 export function chatNotificationText(origin: string) {
   return {
-    subject: "You’ve got a new message. | RAD RACE Team Finder",
+    subject: "You’ve got a new message. | RAD RACE ONETWENTY PADDOCK",
     text: `YOUR CREW IS CALLING.
 
-You have new unread messages in the RAD RACE ONETWENTY Team Finder.
+You have new unread messages in the RAD RACE ONETWENTY PADDOCK.
 
 OPEN MESSAGES
 ${origin}/?messages=1
 
-Read and reply in the Team Finder. You may need to sign in first. Your conversations and email address stay private.
+Read and reply in the Paddock. You may need to sign in first. Your conversations and email address stay private.
 
 You can turn off these notifications in Messages. Please don’t reply to this email — replies to this address are automatically discarded.
 
@@ -91,7 +91,7 @@ RAD RACE`,
 }
 export async function deliverChatNotification(client: Admin) {
   const config = mailConfig();
-  const job = await serverRpc<{ id: string; to: string } | null>(client, "chat_email_claim");
+  const job = await serverRpc<{ id: string; to: string; activity?: boolean } | null>(client, "chat_email_claim");
   if (!job) return null;
   if (!await serverRpc<boolean>(client, "chat_email_ready", { p_id: job.id })) {
     await serverRpc(client, "chat_email_finish", { p_id: job.id, p_state: "skipped" });
@@ -101,10 +101,10 @@ export async function deliverChatNotification(client: Admin) {
   let state: "sent" | "failed" | "uncertain" = "uncertain";
   try {
     const result = await transport.sendMail({
-      from: { name: "RAD RACE Team Finder", address: "teamfinder@rad-race.com" },
+      from: { name: "RAD RACE ONETWENTY PADDOCK", address: "teamfinder@rad-race.com" },
       to: { name: "", address: job.to },
       messageId: `<chat-${job.id}@rad-race.com>`,
-      ...chatNotificationText(config.origin),
+      ...(job.activity ? paddockNotificationText(config.origin) : chatNotificationText(config.origin)),
       headers: { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "All" },
     });
     state = result.accepted.length === 1 ? "sent" : "failed";
@@ -116,4 +116,21 @@ export async function deliverChatNotification(client: Admin) {
   } finally { transport.close(); }
   await serverRpc(client, "chat_email_finish", { p_id: job.id, p_state: state });
   return state;
+}
+
+export function paddockNotificationText(origin: string) {
+  return { subject: "Your crew has news. | ONETWENTY PADDOCK", text: `THINGS ARE MOVING IN YOUR PADDOCK.
+
+You have an update about a team request or membership.
+
+OPEN MY PADDOCK
+${origin}/?manage=1
+
+There may also be unread messages waiting for you:
+${origin}/?messages=1
+
+Read and respond in the app. You can turn off email notifications in Messages. Replies to this email are automatically discarded.
+
+much love
+RAD RACE` };
 }

@@ -17,22 +17,21 @@ export default function SignIn({ onClose }: { onClose: () => void }) {
       if (Date.now() < retryAt) { setError("Please wait one minute before requesting another email."); return; }
       setBusy(true); setError("");
       try {
-        // Preserve the inbox destination if Auth falls back to the configured Site URL.
-        try {
-          if (new URLSearchParams(window.location.search).get("messages") === "1") {
-            localStorage.setItem("teamfinder:sign-in-destination", JSON.stringify({ page: "messages", expires: Date.now() + 3600000 }));
-          }
-        } catch { /* The redirect URL still carries the destination when storage is unavailable. */ }
-        const { error } = await browserSupabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin + (new URLSearchParams(window.location.search).get("messages") === "1" ? "/?messages=1" : ""), shouldCreateUser: true } });
+        const params = new URLSearchParams(window.location.search);
+        const profile = params.get("profile");
+        const page = profile && /^[0-9a-f-]{36}$/i.test(profile) ? "profile" : params.get("messages") === "1" ? "messages" : params.get("manage") === "1" ? "manage" : "";
+        try { if (page) localStorage.setItem("teamfinder:sign-in-destination", JSON.stringify({ page, id: profile, expires: Date.now() + 3600000 })); } catch { /* The redirect also carries the destination. */ }
+        const target = page ? `/?${page}=${page === "profile" ? profile : "1"}` : "";
+        const { error } = await browserSupabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin + target, shouldCreateUser: true } });
         if (error) throw error;
         setSent(true); setRetryAt(Date.now() + 60_000);
       } catch (error) { setError(message(error)); } finally { setBusy(false); }
     }}>
-      <p className={styles.fieldHint}>We’ll email you a sign-in link. Open it to message other riders or manage your listings. You don’t need a listing to chat. Your email address stays private.</p>
+      <p className={styles.fieldHint}>We’ll email you a sign-in link. Open it to message other riders or manage your profile and team. You don’t need a public profile to chat. Your email address stays private.</p>
       <div className={styles.fieldGrid}><label className={styles.fullField}><span>EMAIL ADDRESS</span><input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => { setEmail(event.target.value); setSent(false); }} /></label></div>
       <p className={styles.fieldHint}>Read how we handle your account and messages in our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>privacy notice (opens a new tab)</a>.</p>
-      {sent && <p className={styles.notice} role="status">Check your inbox, including spam. Open the sign-in link, then open Messages or choose a listing to contact.</p>}
-      {!isConfigured && <p className={styles.notice}>The Team Finder connection has not been configured yet.</p>}
+      {sent && <p className={styles.notice} role="status">Check your inbox, including spam. Open the sign-in link, then open Messages or return to a team to request to join.</p>}
+      {!isConfigured && <p className={styles.notice}>The Paddock connection has not been configured yet.</p>}
       {error && <p className={styles.notice} role="alert">{error}</p>}
       <button className={styles.formSubmit} type="submit" disabled={busy || !isConfigured}>{busy ? "SENDING…" : sent ? "SEND ANOTHER LINK" : "EMAIL ME A SIGN-IN LINK"}</button>
     </form>

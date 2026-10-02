@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { browserSupabase, isConfigured } from "@/lib/supabase";
 import { dateLabel, message, meta, photoUrl, rpc, vibes, type Listing } from "@/lib/listings";
@@ -8,6 +8,7 @@ import SignIn from "./SignIn";
 import MyListings from "./MyListings";
 import ContactForm from "./ContactForm";
 import Messages from "./Messages";
+import TeamPanel, { RiderTeam } from "./TeamPanel";
 import styles from "./page.module.css";
 
 import CreateListingForm from "./CreateListingForm";
@@ -18,6 +19,16 @@ export default function Home() {
   const [typeFilter, setTypeFilter] = useState<"all" | ListingType>("all");
   const [vibeFilter, setVibeFilter] = useState<string | null>(null);
   const [genderFilter, setGenderFilter] = useState("all");
+  const [lookingOnly, setLookingOnly] = useState(false);
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [total, setTotal] = useState(0);
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [createType, setCreateType] = useState<"rider" | "team">("rider");
+  const [teamUpdates, setTeamUpdates] = useState(0);
+  const requestVersion = useRef(0);
+  const moreTrigger = useRef<HTMLDivElement>(null);
+  useEffect(() => { const timer = setTimeout(() => setQuery(search.trim()), 250); return () => clearTimeout(timer); }, [search]);
 const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 const [showCreateForm, setShowCreateForm] = useState(false);
 const [contactStep, setContactStep] = useState<"profile" | "compose">("profile");
@@ -44,7 +55,7 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
     let alive = true;
     async function load() {
       if (document.hidden) return;
-      try { const count = await rpc<number>("chat_unread"); if (alive) setUnread(count); }
+      try { const [count, updates] = await Promise.all([rpc<number>("chat_unread"), rpc<number>("paddock_badge")]); if (alive) { setUnread(count); setTeamUpdates(updates); } }
       catch { /* Keep the last known count; Messages displays connection errors. */ }
     }
     void load(); const timer = setInterval(() => void load(), 30000);
@@ -52,39 +63,79 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
     return () => { alive = false; clearInterval(timer); window.removeEventListener("focus", load); };
   }, [user, unreadRefresh]);
   const [editing, setEditing] = useState<Listing | undefined>();
+  const filterArgs = useCallback(() => ({ p_type: typeFilter, p_search: query, p_looking: lookingOnly, p_vibe: vibeFilter ?? "", p_gender: genderFilter }), [typeFilter, query, lookingOnly, vibeFilter, genderFilter]);
   const reload = useCallback(async () => {
+    const version = ++requestVersion.current;
     setLoading(true); setLoadError("");
-    try { setListings(await rpc<Listing[]>("list_public_listings")); }
+    try { const data = await rpc<{ items: Listing[]; total: number }>("paddock_list", filterArgs()); if (version === requestVersion.current) { setListings(data.items); setTotal(data.total); } }
+    catch (error) { if (version === requestVersion.current) setLoadError(message(error)); }
+    finally { if (version === requestVersion.current) setLoading(false); }
+  }, [filterArgs]);
+  const loadMore = useCallback(async () => {
+    if (loading || moreBusy || listings.length >= total) return;
+    const version = requestVersion.current; setMoreBusy(true);
+    try { const data = await rpc<{ items: Listing[]; total: number }>("paddock_list", { ...filterArgs(), p_offset: listings.length }); if (version === requestVersion.current) { setListings(previous => Array.from(new Map([...previous, ...data.items].map(row => [row.id, row])).values())); setTotal(data.total); } }
     catch (error) { setLoadError(message(error)); }
-    finally { setLoading(false); }
+    finally { setMoreBusy(false); }
+  }, [loading, moreBusy, listings.length, total, filterArgs]);
+  useEffect(() => {
+    if (!isConfigured) return;
+    queueMicrotask(() => void reload());
+    const onFocus = () => { void reload(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reload]);
+  useEffect(() => {
+    const node = moreTrigger.current;
+    if (!node || loading || loadError) return;
+    const observer = new IntersectionObserver(entries => { if (entries[0].isIntersecting) void loadMore(); }, { rootMargin: "300px" });
+    observer.observe(node); return () => observer.disconnect();
+  }, [loadMore, loading, loadError]);
+  const openProfile = useCallback(async (id: string) => {
+    try {
+      const profile = await rpc<Listing | null>("public_listing", { p_id: id });
+      if (!profile) throw new Error("This profile is hidden, deleted or expired.");
+      setShowManage(false); setContactStep("profile"); setSelectedListing(profile);
+    } catch (error) { setNotice(message(error)); }
   }, []);
+  function signInForProfile(id: string) {
+    const target = `/?profile=${encodeURIComponent(id)}`;
+    window.history.replaceState(null, "", target);
+    setSelectedListing(null); setShowSignIn(true);
+  }
   useEffect(() => {
     if (!isConfigured) {
       queueMicrotask(() => { setLoadError("Add the supplied Supabase settings to .env.local, then restart the app."); setLoading(false); setAuthLoading(false); });
       return;
     }
-    queueMicrotask(() => void reload());
     const client = browserSupabase();
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null); setAuthLoading(false);
       if (session) {
         setShowSignIn(false);
+        let profileRequested = new URLSearchParams(window.location.search).get("profile");
+        let manageRequested = new URLSearchParams(window.location.search).get("manage") === "1";
         let inboxRequested = new URLSearchParams(window.location.search).get("messages") === "1";
         try {
           const destination = JSON.parse(localStorage.getItem("teamfinder:sign-in-destination") ?? "null");
           inboxRequested ||= destination?.page === "messages" && destination.expires > Date.now();
+          manageRequested ||= destination?.page === "manage" && destination.expires > Date.now();
+          if (destination?.page === "profile" && destination.expires > Date.now()) profileRequested ||= destination.id;
           localStorage.removeItem("teamfinder:sign-in-destination");
         } catch { /* Optional navigation hint. */ }
+        if (profileRequested && /^[0-9a-f-]{36}$/i.test(profileRequested)) {
+          const id = profileRequested; queueMicrotask(() => void openProfile(id));
+        }
         if (inboxRequested) {
           setShowMessages(true);
           window.history.replaceState(null, "", window.location.pathname + window.location.hash);
         }
-        if (new URLSearchParams(window.location.search).get("manage") === "1") {
+        if (manageRequested) {
           setShowManage(true);
           window.history.replaceState(null, "", window.location.pathname + window.location.hash);
         }
       }
-      if (event === "SIGNED_OUT") { setShowManage(false); setShowMessages(false); setSelectedListing(null); setUnread(0); setShowCreateForm(false); setEditing(undefined); }
+      if (event === "SIGNED_OUT") { setShowManage(false); setShowMessages(false); setSelectedListing(null); setUnread(0); setTeamUpdates(0); setShowCreateForm(false); setEditing(undefined); }
     });
     client.auth.getSession().then(async ({ data, error }) => {
       if (error) setNotice("That sign-in link could not be used. Please request a new one.");
@@ -98,13 +149,13 @@ const dialogTrigger = useRef<HTMLButtonElement | null>(null);
     }).catch(() => { setNotice("Sign-in could not be checked. Please try again."); setAuthLoading(false); });
     const params = new URLSearchParams(window.location.hash.slice(1));
     if (params.has("error")) setTimeout(() => setNotice("The sign-in link has expired or was already used. Please request another one."), 0);
-    const onFocus = () => { void reload(); };
-    window.addEventListener("focus", onFocus);
-    return () => { subscription.unsubscribe(); window.removeEventListener("focus", onFocus); };
-  }, [reload]);
+    const profileId = new URLSearchParams(window.location.search).get("profile");
+    if (profileId && /^[0-9a-f-]{36}$/i.test(profileId)) queueMicrotask(() => void openProfile(profileId));
+    return () => subscription.unsubscribe();
+  }, [openProfile]);
   function openCreate(trigger: HTMLButtonElement) {
     dialogTrigger.current = trigger; setEditing(undefined);
-    if (!user) setShowSignIn(true); else setShowCreateForm(true);
+    if (!user) { window.history.replaceState(null, "", "/?manage=1"); setShowSignIn(true); } else setShowManage(true);
   }
   async function signOut() {
     try { const { error } = await browserSupabase().auth.signOut(); if (error) throw error; setNotice("Signed out."); }
@@ -201,19 +252,7 @@ setShowMessages(false);
   };
 }, [selectedListing, showCreateForm, showSignIn, showManage, showMessages]);
 
-  const visibleListings = useMemo(() => {
-    return listings.filter((listing) => {
-      const matchesType =
-        typeFilter === "all" || listing.type === typeFilter;
-      const matchesVibe =
-        vibeFilter === null || listing.vibes.includes(vibeFilter);
-
-      const matchesGender = genderFilter === "all" || (listing.type === "rider"
-        ? listing.riderGender === (genderFilter === "Women" ? "Woman" : "Man")
-        : listing.seeking === "Anyone" || listing.seeking === genderFilter);
-      return matchesType && matchesVibe && matchesGender;
-    });
-  }, [listings, typeFilter, vibeFilter, genderFilter]);
+  const visibleListings = listings;
 
   return (
     <main className={styles.page}>
@@ -224,7 +263,7 @@ setShowMessages(false);
 
         <span className={styles.event}>ONETWENTY 2027</span>
         <nav className={styles.accountNav} aria-label="Account">
-          <button type="button" disabled={authLoading || !isConfigured} onClick={(event) => { dialogTrigger.current = event.currentTarget; if (user) setShowManage(true); else setShowSignIn(true); }}>{authLoading ? "LOADING…" : user ? "MY LISTINGS" : "SIGN IN"}</button>
+          <button type="button" disabled={authLoading || !isConfigured} onClick={(event) => { dialogTrigger.current = event.currentTarget; if (user) setShowManage(true); else setShowSignIn(true); }}>{authLoading ? "LOADING…" : user ? `MY PADDOCK${teamUpdates ? ` (${teamUpdates})` : ""}` : "SIGN IN"}</button>
           {user && <button type="button" onClick={(event) => { dialogTrigger.current = event.currentTarget; setChatId(undefined); setShowMessages(true); }}>MESSAGES{unread > 0 ? ` (${unread})` : ""}</button>}
           {user && <button type="button" onClick={() => void signOut()}>SIGN OUT</button>}
         </nav>
@@ -236,10 +275,9 @@ setShowMessages(false);
 
         <div className={styles.heroContent}>
           <p className={styles.kicker}>RIDE TOGETHER. FINISH TOGETHER.</p>
-          <h1>FIND YOUR TEAM.</h1>
+          <h1>ONETWENTY<br />PADDOCK.</h1>
           <p className={styles.intro}>
-            Still missing a team? Or one rider short? Find the people who match
-            your pace, your plans and your idea of a good day on the bike.
+            Meet the riders. Discover the teams. Find your crew — or show the one you already have. This is your ONETWENTY Paddock.
           </p>
 
           <button
@@ -248,7 +286,7 @@ setShowMessages(false);
   disabled={authLoading || !isConfigured}
   onClick={(event) => openCreate(event.currentTarget)}
 >
-  CREATE A LISTING
+  JOIN THE PADDOCK
   <span aria-hidden="true">↗</span>
 </button>
         </div>
@@ -259,12 +297,12 @@ setShowMessages(false);
         {loadError && <div className={styles.notice} role="alert"><p>{loadError}</p><button type="button" onClick={() => void reload()}>TRY AGAIN</button></div>}
         <div className={styles.finderHeading}>
           <div>
-            <p className={styles.sectionLabel}>TEAM FINDER</p>
-            <h2>WHO ARE YOU LOOKING FOR?</h2>
+            <p className={styles.sectionLabel}>MEET YOUR STARTING LINE</p>
+            <h2>WHO’S RIDING?</h2>
           </div>
 
           <p className={styles.resultCount}>
-            {loading ? "LOADING…" : `${visibleListings.length} ACTIVE LISTINGS`}
+            {loading ? "LOADING…" : `${total} PROFILES`}
           </p>
         </div>
 
@@ -283,7 +321,7 @@ setShowMessages(false);
   aria-pressed={typeFilter === "team"}
   type="button"
 >
-  I NEED A TEAM
+  TEAMS
 </button>
 
 <button
@@ -292,9 +330,11 @@ setShowMessages(false);
   aria-pressed={typeFilter === "rider"}
   type="button"
 >
-  WE NEED RIDERS
+  RIDERS
 </button>        </div>
 
+        <label className={styles.searchField}><span className={styles.profileLabel}>FIND A RIDER, TEAM OR CITY</span><input type="search" maxLength={100} placeholder="Search the Paddock…" value={search} onChange={event => setSearch(event.target.value)} /></label>
+        <div className={styles.vibeFilters}><button type="button" aria-pressed={lookingOnly} className={lookingOnly ? styles.activeVibe : ""} onClick={() => setLookingOnly(value => !value)}>TEAM FINDER · STILL LOOKING</button></div>
         <div className={styles.vibeFilters} aria-label="Riding vibe">
           {vibes.map((vibe) => (
             <button
@@ -322,13 +362,13 @@ setShowMessages(false);
                 {gender}
               </button>
             ))}
-            {(typeFilter !== "all" || vibeFilter !== null || genderFilter !== "all") && (
-              <button type="button" onClick={() => { setTypeFilter("all"); setVibeFilter(null); setGenderFilter("all"); }}>Clear filters ×</button>
+            {(typeFilter !== "all" || vibeFilter !== null || genderFilter !== "all" || lookingOnly || search) && (
+              <button type="button" onClick={() => { setTypeFilter("all"); setVibeFilter(null); setGenderFilter("all"); setLookingOnly(false); setSearch(""); }}>Clear filters ×</button>
             )}
           </div>
         </div>
 
-        {loading ? <p role="status">Loading listings…</p> : loadError ? null : visibleListings.length > 0 ? (
+        {loading ? <p role="status">Loading profiles…</p> : loadError ? null : visibleListings.length > 0 ? (
           <div className={styles.grid}>
             {visibleListings.map((listing) => (
               <article className={styles.card} key={listing.id}>
@@ -336,14 +376,13 @@ setShowMessages(false);
                   {/* Temporary public event image used only for the prototype. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={photoUrl(listing)}
+                    src={photoUrl(listing, true)}
+                    loading="lazy"
                     alt=""
                     className={styles.image}
                   />
                   <span className={styles.listingType}>
-                    {listing.type === "rider"
-                      ? "LOOKING FOR A TEAM"
-                      : "LOOKING FOR RIDERS"}
+                    {meta(listing).toUpperCase()}
                   </span>
                 </div>
 
@@ -352,8 +391,8 @@ setShowMessages(false);
                   <h3>{listing.name}</h3>
                   <p className={styles.region}>{listing.region}</p>
                   <div className={styles.categoryTags}>
-                    <span>{listing.type === "rider" ? `Rider: ${listing.riderGender}` : `Looking for: ${listing.seeking}`}</span>
-                    <span>{listing.type === "rider" ? "Team categories: " : "Team category: "}{listing.categories.join(", ")}</span>
+                    {(listing.type === "team" || listing.riderGender) && <span>{listing.type === "rider" ? listing.riderGender : listing.looking ? `Looking for: ${listing.seeking}` : "TEAM COMPLETE"}</span>}
+                    {!!listing.categories.length && <span>{listing.type === "rider" ? "Team categories: " : "Team category: "}{listing.categories.join(", ")}</span>}
                   </div>
                   <p className={styles.description}>{listing.description}</p>
 
@@ -382,17 +421,18 @@ setShowMessages(false);
         ) : (
           <div className={styles.empty}>
             <p>NO MATCH YET.</p>
-            <span>{listings.length ? "Try different filters or use Clear filters." : "Be the first to create a listing."}</span>
+            <span>{search || typeFilter !== "all" || lookingOnly || vibeFilter || genderFilter !== "all" ? "Try different filters or use Clear filters." : "Be the first to join the Paddock."}</span>
           </div>
         )}
+        {!loading && listings.length < total && <div ref={moreTrigger}><button type="button" className={`${styles.photoButton} ${styles.loadMore}`} disabled={moreBusy} onClick={() => void loadMore()}>{moreBusy ? "LOADING…" : "MORE PROFILES ↓"}</button></div>}
       </section>
 
       {showCreateForm && (
-  <CreateListingForm initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { setShowCreateForm(false); setEditing(undefined); setNotice("Your listing is now online. Manage it under My listings."); void reload(); }} />
+  <CreateListingForm kind={createType} initial={editing} email={user?.email ?? ""} onClose={() => setShowCreateForm(false)} onSaved={() => { setShowCreateForm(false); setEditing(undefined); setShowManage(true); setNotice("Your profile is online. Manage your team and optional RAD RACE feature permission in My Paddock."); void reload(); }} />
 )}
 {showMessages && user && <Messages initialId={chatId} onClose={() => { setShowMessages(false); refreshUnread(); }} onUnreadChanged={refreshUnread} />}
 {showSignIn && <SignIn onClose={() => setShowSignIn(false)} />}
-{showManage && <MyListings onClose={() => setShowManage(false)} onChanged={() => void reload()} onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }} />}
+{showManage && <MyListings onCreate={(type) => { setCreateType(type); setEditing(undefined); setShowManage(false); setShowCreateForm(true); }} onOpen={(id) => void openProfile(id)} onClose={() => { setShowManage(false); refreshUnread(); }} onChanged={() => { void reload(); refreshUnread(); }} onEdit={(listing) => { setEditing(listing); setShowManage(false); setShowCreateForm(true); }} />}
 {selectedListing && (
   <div
     className={styles.modalBackdrop}
@@ -404,6 +444,7 @@ setShowMessages(false);
     }}
   >
     <section
+      key={selectedListing.id}
       className={styles.profileModal}
       role="dialog"
       aria-modal="true"
@@ -430,9 +471,7 @@ setShowMessages(false);
         />
 
         <span className={styles.profileType}>
-          {selectedListing.type === "rider"
-            ? "LOOKING FOR A TEAM"
-            : "LOOKING FOR RIDERS"}
+          {meta(selectedListing).toUpperCase()}
         </span>
       </div>
 
@@ -443,11 +482,12 @@ setShowMessages(false);
         <div className={styles.profileSection}>
           <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER & TEAM PREFERENCE" : "TEAM & RIDER SEARCH"}</p>
           <div className={styles.categoryTags}>
-            <span>{selectedListing.type === "rider" ? `Rider: ${selectedListing.riderGender}` : `Looking for: ${selectedListing.seeking}`}</span>
-                    <span>{selectedListing.type === "rider" ? "Team categories: " : "Team category: "}{selectedListing.categories.join(", ")}</span>
+            {(selectedListing.type === "team" || selectedListing.riderGender) && <span>{selectedListing.type === "rider" ? selectedListing.riderGender : selectedListing.looking ? `Looking for: ${selectedListing.seeking}` : "TEAM COMPLETE"}</span>}
+                    {!!selectedListing.categories.length && <span>{selectedListing.type === "rider" ? "Team categories: " : "Team category: "}{selectedListing.categories.join(", ")}</span>}
           </div>
         </div>
 
+        {selectedListing.type === "team" ? <TeamPanel key={selectedListing.id} team={selectedListing} signedIn={Boolean(user)} onSignIn={() => signInForProfile(selectedListing.id)} onOpen={id => void openProfile(id)} onManage={() => { setSelectedListing(null); setShowManage(true); }} onBusy={setContactBusy} onChanged={() => { refreshUnread(); void reload(); }} /> : <RiderTeam key={selectedListing.id} riderId={selectedListing.id} onOpen={id => void openProfile(id)} />}
         <div className={styles.profileSection}>
           <p className={styles.profileLabel}>ABOUT</p>
           <p className={styles.profileDescription}>
@@ -483,7 +523,7 @@ setShowMessages(false);
           type="button"
           hidden={contactStep !== "profile"}
           style={contactStep !== "profile" ? { display: "none" } : undefined}
-          onClick={() => { if (!user) { setSelectedListing(null); setShowSignIn(true); } else setContactStep("compose"); }}
+          onClick={() => { if (!user) { signInForProfile(selectedListing.id); } else setContactStep("compose"); }}
         >
           {user ? "SEND MESSAGE" : "SIGN IN TO SEND A MESSAGE"}
           <span aria-hidden="true">→</span>
@@ -511,7 +551,7 @@ setShowMessages(false);
 )}
 
       <footer className={styles.footer}>
-        <span>RAD RACE ONETWENTY 2027</span>
+        <span>RAD RACE ONETWENTY PADDOCK · 2027</span>
         <nav aria-label="Legal and support" style={{ display: "flex", flexWrap: "wrap", gap: "16px 24px" }}>
           <a href="/privacy">PRIVACY</a>
           <a href="https://www.rad-race.com/imprint">IMPRINT</a>
