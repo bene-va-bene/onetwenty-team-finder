@@ -221,3 +221,12 @@ test('closing an edited profile warns before unpublished changes are discarded',
   assert.ok(source.includes('if (dirty)'));
   assert.ok(source.includes('onClick={requestClose}'));
 });
+
+
+test('hero join CTA disappears once the signed-in account has a rider profile', () => {
+  const source = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('rpc<{ rider: Listing | null }>("paddock_home")'));
+  assert.ok(source.includes('riderProfileChecked && !hasRiderProfile'));
+  assert.ok(source.includes('setHasRiderProfile(true)'));
+  assert.ok(source.includes('JOIN THE PADDOCK'));
+});
