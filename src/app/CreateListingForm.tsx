@@ -43,6 +43,8 @@ export default function CreateListingForm({
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const validationSummaryRef = useRef<HTMLDivElement>(null);
   const savedRecord = useRef<Listing | undefined>(initial);
   const newId = useRef<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -145,6 +147,15 @@ export default function CreateListingForm({
     );
   }
 
+  function clearValidationError(field: string) {
+    setValidationErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -152,7 +163,8 @@ export default function CreateListingForm({
       return;
     }
 
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     const fields = listingType === "rider"
       ? ["displayName", "region", "age", "languages", "description", "strava", "instagram"]
       : ["displayName", "ridersNeeded", "description", "strava", "instagram"];
@@ -160,26 +172,45 @@ export default function CreateListingForm({
     for (const field of fields) {
       publicFields[field] = String(data.get(field) ?? "").trim();
     }
-    for (const field of listingType === "rider" ? ["displayName", "region", "languages"] : ["displayName"]) {
-      const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement | HTMLTextAreaElement;
-      input.setCustomValidity(publicFields[field] ? "" : "Please complete this field.");
-      if (!input.reportValidity()) return;
+
+    const errors: Record<string, string> = {};
+    if (listingType === "rider" && !riderGender) errors.riderGender = "Choose Man or Woman.";
+    if (listingType === "rider" && !riderPreference) errors.riderPreference = "Choose Mixed or Not mixed.";
+    if (!publicFields.displayName) errors.displayName = listingType === "team" ? "Enter your team name." : "Enter your display name.";
+    if (listingType === "rider" && !publicFields.region) errors.region = "Enter your city or region.";
+    if (listingType === "rider" && !publicFields.languages) errors.languages = "Add at least one language.";
+
+    const socialRules: Record<string, RegExp> = {
+      strava: /^https:\/\/(www\.)?strava\.com\//,
+      instagram: /^https:\/\/(www\.)?instagram\.com\//,
+    };
+    for (const field of ["strava", "instagram"]) {
+      if (publicFields[field] && !socialRules[field].test(publicFields[field])) {
+        errors[field] = `Use a full https://${field}.com link.`;
+      }
     }
+
+    if (!data.get("publicationConsent")) {
+      errors.publicationConsent = "Confirm that your profile can be shown publicly.";
+    }
+    if (imagePreview && !data.get("photoConsent")) {
+      errors.photoConsent = "Confirm that you may publish this photo.";
+    }
+
+    if (Object.keys(errors).length) {
+      setValidationErrors(errors);
+      requestAnimationFrame(() => {
+        validationSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        validationSummaryRef.current?.focus({ preventScroll: true });
+      });
+      return;
+    }
+
+    setValidationErrors({});
     if (listingType === "team") {
       delete publicFields.age;
       delete publicFields.region;
       delete publicFields.languages;
-    }
-    // Only permit ordinary web links in the rendered preview.
-    for (const field of ["strava", "instagram"]) {
-      const input = event.currentTarget.elements.namedItem(field) as HTMLInputElement;
-      input.setCustomValidity("");
-      const allowed = field === "strava" ? /^https:\/\/(www\.)?strava\.com\// : /^https:\/\/(www\.)?instagram\.com\//;
-      if (publicFields[field] && !allowed.test(publicFields[field])) {
-        input.setCustomValidity(`Please enter an https:// link to ${field}.com.`);
-        input.reportValidity();
-        return;
-      }
     }
     editScrollPosition.current = backdropRef.current?.scrollTop ?? 0;
     setPreview(publicFields);
@@ -287,10 +318,32 @@ export default function CreateListingForm({
           </div>
         )}
 
-        <form className={styles.listingForm} onSubmit={handleSubmit} onInput={(event) => {
-          const field = event.target;
-          if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) field.setCustomValidity("");
-        }} style={preview ? { display: "none" } : undefined}>
+        <form
+          className={styles.listingForm}
+          onSubmit={handleSubmit}
+          noValidate
+          onInput={(event) => {
+            const field = event.target;
+            if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
+              if (field.name) clearValidationError(field.name);
+            }
+          }}
+          style={preview ? { display: "none" } : undefined}
+        >
+          {Object.keys(validationErrors).length > 0 && (
+            <div
+              ref={validationSummaryRef}
+              className={styles.validationSummary}
+              role="alert"
+              tabIndex={-1}
+            >
+              <strong>ALMOST THERE.</strong>
+              <p>Please complete the highlighted fields before you continue.</p>
+              <ul>
+                {Object.values(validationErrors).map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
           <fieldset className={styles.formSection}>
             <legend>{listingType === "rider" ? "YOUR RIDER PROFILE" : "YOUR TEAM"}</legend>
             <p className={styles.fieldHint}>{listingType === "rider" ? "This is your rider profile. You need it before you can join or create a team." : "Your team is built from rider profiles. City, languages and team composition update automatically from the current members."}</p>
@@ -301,23 +354,41 @@ export default function CreateListingForm({
             {listingType === "rider" ? (
               <>
                 <p className={styles.profileLabel}>I AM</p>
-                <div className={styles.formVibes}>
+                <div className={styles.formVibes} aria-invalid={Boolean(validationErrors.riderGender)}>
                   {["Man", "Woman"].map((value) => (
                     <label key={value}>
-                      <input type="radio" name="riderGender" required checked={riderGender === value} onChange={() => setRiderGender(value)} />
+                      <input
+                        type="radio"
+                        name="riderGender"
+                        checked={riderGender === value}
+                        onChange={() => {
+                          setRiderGender(value);
+                          clearValidationError("riderGender");
+                        }}
+                      />
                       <span>{value}</span>
                     </label>
                   ))}
                 </div>
+                {validationErrors.riderGender && <p className={styles.fieldError}>{validationErrors.riderGender}</p>}
                 <p className={styles.profileLabel} style={{ marginTop: 24 }}>LOOKING FOR A TEAM</p>
-                <div className={styles.formVibes}>
+                <div className={styles.formVibes} aria-invalid={Boolean(validationErrors.riderPreference)}>
                   {["Mixed", "Not mixed"].map((value) => (
                     <label key={value}>
-                      <input type="radio" name="riderPreference" required checked={riderPreference === value} onChange={() => setRiderPreference(value)} />
+                      <input
+                        type="radio"
+                        name="riderPreference"
+                        checked={riderPreference === value}
+                        onChange={() => {
+                          setRiderPreference(value);
+                          clearValidationError("riderPreference");
+                        }}
+                      />
                       <span>{value}</span>
                     </label>
                   ))}
                 </div>
+                {validationErrors.riderPreference && <p className={styles.fieldError}>{validationErrors.riderPreference}</p>}
                 <p className={styles.fieldHint} style={{ marginTop: 20 }}>
                   Not mixed means a Men’s Team for men and a Women’s Team for women. Mixed means you’re looking for a Mixed Team.
                 </p>
@@ -361,13 +432,15 @@ export default function CreateListingForm({
                 <span>{listingType === "team" ? "TEAM NAME" : "DISPLAY NAME"}</span>
                 <input
                   type="text"
-                  name="displayName" required
+                  name="displayName"
+                  aria-invalid={Boolean(validationErrors.displayName)}
                   defaultValue={initial?.name}
                   maxLength={60}
                   placeholder={
                     listingType === "rider" ? "e.g. Mara" : "e.g. Team No Sleep"
                   }
                 />
+                {validationErrors.displayName && <small className={styles.fieldError}>{validationErrors.displayName}</small>}
               </label>
 
               {listingType === "rider" && <label>
@@ -375,11 +448,12 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="region"
-                  required
+                  aria-invalid={Boolean(validationErrors.region)}
                   defaultValue={initial?.region}
                   maxLength={100}
                   placeholder="e.g. Hamburg"
                 />
+                {validationErrors.region && <small className={styles.fieldError}>{validationErrors.region}</small>}
               </label>}
 
               {listingType === "rider" && <label>
@@ -400,11 +474,12 @@ export default function CreateListingForm({
                 <input
                   type="text"
                   name="languages"
-                  required
+                  aria-invalid={Boolean(validationErrors.languages)}
                   defaultValue={initial?.languages}
                   maxLength={100}
                   placeholder="e.g. EN, DE"
                 />
+                {validationErrors.languages && <small className={styles.fieldError}>{validationErrors.languages}</small>}
               </label>}
 
               {listingType === "team" && looking && (
@@ -474,9 +549,10 @@ export default function CreateListingForm({
                   name="strava"
                   defaultValue={initial?.strava}
                   maxLength={500}
-                  onInput={(event) => event.currentTarget.setCustomValidity("")}
+                  aria-invalid={Boolean(validationErrors.strava)}
                   placeholder="https://strava.com/athletes/..."
                 />
+                {validationErrors.strava && <small className={styles.fieldError}>{validationErrors.strava}</small>}
               </label>
 
               <label>
@@ -486,9 +562,10 @@ export default function CreateListingForm({
                   name="instagram"
                   defaultValue={initial?.instagram}
                   maxLength={500}
-                  onInput={(event) => event.currentTarget.setCustomValidity("")}
+                  aria-invalid={Boolean(validationErrors.instagram)}
                   placeholder="https://instagram.com/..."
                 />
+                {validationErrors.instagram && <small className={styles.fieldError}>{validationErrors.instagram}</small>}
               </label>
 
               <label className={styles.fullField}>
@@ -514,22 +591,32 @@ export default function CreateListingForm({
 
             <div className={styles.consentList}>
               <p className={styles.fieldHint}>Read about public profiles, photos and deletion in our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>privacy notice (opens a new tab)</a>.</p>
-              <label>
-                <input type="checkbox" required />
+              <label className={validationErrors.publicationConsent ? styles.invalidChoice : undefined}>
+                <input
+                  type="checkbox"
+                  name="publicationConsent"
+                  onChange={() => clearValidationError("publicationConsent")}
+                />
                 <span>
                   I agree that my selected profile information will be shown
                   publicly in the RAD RACE ONETWENTY Paddock.
                 </span>
               </label>
+              {validationErrors.publicationConsent && <p className={styles.fieldError}>{validationErrors.publicationConsent}</p>}
 
               {imagePreview && (
-  <label key={imagePreview}>
-    <input type="checkbox" required />
+  <label key={imagePreview} className={validationErrors.photoConsent ? styles.invalidChoice : undefined}>
+    <input
+      type="checkbox"
+      name="photoConsent"
+      onChange={() => clearValidationError("photoConsent")}
+    />
     <span>
       I confirm that I may use this photo and that it can be shown
       publicly in the RAD RACE ONETWENTY Paddock.
     </span>
   </label>
+  {validationErrors.photoConsent && <p className={styles.fieldError}>{validationErrors.photoConsent}</p>}
 )}
             </div>
           </fieldset>
