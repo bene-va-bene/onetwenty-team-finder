@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { browserSupabase, isConfigured } from "@/lib/supabase";
-import { dateLabel, message, meta, photoUrl, rpc, vibes, type Listing } from "@/lib/listings";
+import { dateLabel, message, meta, photoUrl, riderTeamPreference, rpc, vibes, type Listing } from "@/lib/listings";
 import SignIn from "./SignIn";
 import MyListings from "./MyListings";
 import ContactForm from "./ContactForm";
@@ -365,9 +365,9 @@ setShowMessages(false);
         </div>
 
         <div style={{ marginBottom: 32 }}>
-          <p id="gender-filter-label" className={styles.profileLabel}>{typeFilter === "team" ? "TEAMS LOOKING FOR" : typeFilter === "rider" ? "RIDERS" : "RIDERS / TEAMS LOOKING FOR"}</p>
+          <p id="gender-filter-label" className={styles.profileLabel}>{typeFilter === "team" ? "TEAMS LOOKING FOR" : typeFilter === "rider" ? "RIDERS LOOKING FOR" : "LOOKING FOR"}</p>
           <div className={styles.vibeFilters} role="group" aria-labelledby="gender-filter-label" style={{ margin: "10px 0 0", flexWrap: "wrap", overflow: "visible", paddingRight: 0 }}>
-            {["Women", "Men"].map((gender) => (
+            {["Men", "Women", "Mixed"].map((gender) => (
               <button key={gender} type="button"
                 className={genderFilter === gender ? styles.activeVibe : ""}
                 aria-pressed={genderFilter === gender}
@@ -404,8 +404,17 @@ setShowMessages(false);
                   <h3>{listing.name}</h3>
                   <p className={styles.region}>{listing.region}</p>
                   <div className={styles.categoryTags}>
-                    {(listing.type === "rider" ? listing.riderGender : listing.looking && listing.seeking) && <span>{listing.type === "rider" ? listing.riderGender : `Looking for: ${listing.seeking}`}</span>}
-                    {!!listing.categories.length && <span>{listing.type === "rider" ? "Team categories: " : "Team category: "}{listing.categories.join(", ")}</span>}
+                    {listing.type === "rider" ? (
+                      <>
+                        {listing.riderGender && <span>I am: {listing.riderGender}</span>}
+                        {riderTeamPreference(listing) && <span>Looking for: {riderTeamPreference(listing)}</span>}
+                      </>
+                    ) : (
+                      <>
+                        {!!listing.categories.length && <span>Team: {listing.categories[0]}</span>}
+                        {listing.looking && listing.seeking && <span>Looking for: {listing.seeking}</span>}
+                      </>
+                    )}
                   </div>
                   <p className={styles.description}>{listing.description}</p>
 
@@ -491,12 +500,21 @@ setShowMessages(false);
       <div className={styles.profileContent}>
         <p className={styles.cardMeta}>{meta(selectedListing)}</p>
         <h2 id="profile-title">{selectedListing.name}</h2>
-        <p className={styles.profileRegion}>{selectedListing.region}</p>
+        {selectedListing.region && <p className={styles.profileRegion}>{selectedListing.region}</p>}
         <div className={styles.profileSection}>
-          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER & TEAM PREFERENCE" : "TEAM CATEGORY"}</p>
+          <p className={styles.profileLabel}>{selectedListing.type === "rider" ? "RIDER" : "TEAM"}</p>
           <div className={styles.categoryTags}>
-            {(selectedListing.type === "rider" ? selectedListing.riderGender : selectedListing.looking && selectedListing.seeking) && <span>{selectedListing.type === "rider" ? selectedListing.riderGender : `Looking for: ${selectedListing.seeking}`}</span>}
-                    {!!selectedListing.categories.length && <span>{selectedListing.type === "rider" ? "Team categories: " : "Team category: "}{selectedListing.categories.join(", ")}</span>}
+            {selectedListing.type === "rider" ? (
+              <>
+                {selectedListing.riderGender && <span>I am: {selectedListing.riderGender}</span>}
+                {riderTeamPreference(selectedListing) && <span>Looking for: {riderTeamPreference(selectedListing)}</span>}
+              </>
+            ) : (
+              <>
+                {!!selectedListing.categories.length && <span>Team: {selectedListing.categories[0]}</span>}
+                {selectedListing.looking && selectedListing.seeking && <span>Looking for: {selectedListing.seeking}</span>}
+              </>
+            )}
           </div>
         </div>
 
@@ -518,10 +536,10 @@ setShowMessages(false);
         </div>
 
         <div className={styles.profileFacts}>
-          <div>
+          {selectedListing.languages && <div>
             <span>LANGUAGES</span>
             <strong>{selectedListing.languages}</strong>
-          </div>
+          </div>}
           <div>
             <span>PUBLISHED</span>
             <strong>{dateLabel(selectedListing.published_at)}</strong>
